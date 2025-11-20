@@ -129,23 +129,33 @@ const App: React.FC = () => {
   }, []);
   
   const handleSendMessage = useCallback((messageText: string) => {
-    if (!projectPlan) return;
-    const userMessage: ChatMessage = {
-      sender: 'user',
-      text: messageText,
-      timestamp: new Date().toISOString(),
-    };
-    const advisorResponse: ChatMessage = {
-        sender: 'advisor',
-        text: "Thank you for your message. Let me review your request and I will get back to you shortly with a revised proposal based on our discussion.",
-        timestamp: new Date(new Date().getTime() + 1000).toISOString(),
-    };
-    const nextState = produce(projectPlan, draft => {
+    updateProjectPlanWithHistory(draft => {
+        const userMessage: ChatMessage = {
+          sender: 'user',
+          text: messageText,
+          timestamp: new Date().toISOString(),
+        };
+        const advisorResponse: ChatMessage = {
+            sender: 'advisor',
+            text: "Thank you for your message. Let me review your request and I will get back to you shortly with a revised proposal based on our discussion.",
+            timestamp: new Date(new Date().getTime() + 1000).toISOString(),
+        };
         draft.chatHistory.push(userMessage);
         draft.chatHistory.push(advisorResponse);
     });
-    setProjectPlan(nextState);
-  }, [projectPlan]);
+  }, [updateProjectPlanWithHistory]);
+
+  const handleAddAdvisorMessage = useCallback((messageText: string) => {
+      updateProjectPlanWithHistory(draft => {
+          const advisorMessage: ChatMessage = {
+              sender: 'advisor',
+              text: messageText,
+              timestamp: new Date().toISOString(),
+          };
+          draft.chatHistory.push(advisorMessage);
+      });
+  }, [updateProjectPlanWithHistory]);
+
 
   const recalculateCosts = (draft: ProjectPlan) => {
       const originalTotalCost = history[0]?.totalCost || draft.totalCost;
@@ -254,21 +264,18 @@ const App: React.FC = () => {
   }, []);
 
   const handlePayment = useCallback(() => {
-    if (!projectPlan) return;
-    const nextState = produce(projectPlan, draft => {
+    updateProjectPlanWithHistory(draft => {
         draft.paymentStatus = 'Booking Paid';
         const bookingMilestone = draft.paymentSchedule.find(p => p.status === 'Due');
         if (bookingMilestone) {
             bookingMilestone.status = 'Completed';
         }
     });
-    setProjectPlan(nextState);
     setViewMode('dashboard');
-  }, [projectPlan]);
+  }, [updateProjectPlanWithHistory]);
   
   const handleRaiseTicket = useCallback((newTicket: Omit<SupportTicket, 'id' | 'assignedTo' | 'expectedResolution' | 'activity'> & { description: string }) => {
-    if (!projectPlan) return;
-    const nextState = produce(projectPlan, draft => {
+    updateProjectPlanWithHistory(draft => {
         const ticket: SupportTicket = {
             subject: newTicket.subject,
             category: newTicket.category,
@@ -280,20 +287,53 @@ const App: React.FC = () => {
         };
         draft.supportTickets.unshift(ticket);
     });
-    setProjectPlan(nextState);
-  }, [projectPlan]);
+  }, [updateProjectPlanWithHistory]);
 
 
   const handleAddUserNote = useCallback((updateDate: string, note: string) => {
-    if (!projectPlan) return;
-    const nextState = produce(projectPlan, draft => {
+    updateProjectPlanWithHistory(draft => {
       const update = draft.weeklyUpdates.find(u => u.date === updateDate);
       if (update) {
         update.userNotes = note;
       }
     });
-    setProjectPlan(nextState);
-  }, [projectPlan]);
+  }, [updateProjectPlanWithHistory]);
+
+  const handleBulkUpdateMaterials = useCallback((selectedMaterials: string[], action: 'increase' | 'decrease', type: 'quantity' | 'price', percentage: number) => {
+    updateProjectPlanWithHistory(draft => {
+        const factor = action === 'increase' ? (1 + percentage / 100) : (1 - percentage / 100);
+        
+        draft.materialQuantities.forEach(entry => {
+            if (selectedMaterials.includes(entry.material)) {
+                if (type === 'quantity') {
+                    const newQuantity = entry.quantity * factor;
+                    if (entry.unit.toLowerCase().includes('bag')) {
+                        entry.quantity = Math.round(newQuantity);
+                    } else {
+                        entry.quantity = newQuantity;
+                    }
+                } else if (type === 'price') {
+                    entry.unitPrice *= factor;
+                }
+            }
+        });
+
+        // After updating all entries, recalculate the total cost for each affected material item in the budget
+        selectedMaterials.forEach(materialName => {
+             const newTotalMaterialCost = draft.materialQuantities
+              .filter(m => m.material === materialName)
+              .reduce((sum, m) => sum + (m.quantity * m.unitPrice), 0);
+              
+            const materialsSection = draft.budgetBreakdown.find(s => s.sectionName === 'Materials');
+            if (materialsSection) {
+                const materialItem = materialsSection.items.find(i => i.item.toLowerCase().includes(materialName.toLowerCase()));
+                if (materialItem) materialItem.cost = newTotalMaterialCost;
+            }
+        });
+
+        recalculateCosts(draft);
+    });
+  }, [updateProjectPlanWithHistory]);
 
 
   const handleReset = useCallback(() => {
@@ -341,11 +381,11 @@ const App: React.FC = () => {
       case 'wizard':
         return <Wizard onSubmit={handleGenerateEstimate} />;
       case 'budget_review':
-        return projectPlan && <BudgetReview project={projectPlan} onSendMessage={handleSendMessage} onFinalize={handleFinalizeEstimate} onUpdateMaterialTotalQuantity={handleUpdateMaterialTotalQuantity} />;
+        return projectPlan && <BudgetReview project={projectPlan} onSendMessage={handleSendMessage} onFinalize={handleFinalizeEstimate} onUpdateMaterialTotalQuantity={handleUpdateMaterialTotalQuantity} onAddAdvisorMessage={handleAddAdvisorMessage} />;
       case 'deal_closure':
         return projectPlan && <DealClosure project={projectPlan} onPayment={handlePayment} onBack={() => setViewMode('budget_review')} />;
       case 'dashboard':
-        return projectPlan && <ProjectDashboard project={projectPlan} onReset={handleReset} onRaiseTicket={handleRaiseTicket} onAddUserNote={handleAddUserNote} onUpdateMaterialFloorEntry={handleUpdateMaterialFloorEntry} onUndo={handleUndo} onRedo={handleRedo} canUndo={canUndo} canRedo={canRedo} />;
+        return projectPlan && <ProjectDashboard project={projectPlan} onReset={handleReset} onRaiseTicket={handleRaiseTicket} onAddUserNote={handleAddUserNote} onUpdateMaterialFloorEntry={handleUpdateMaterialFloorEntry} onUndo={handleUndo} onRedo={handleRedo} canUndo={canUndo} canRedo={canRedo} onBulkUpdateMaterials={handleBulkUpdateMaterials} />;
       default:
         return <Wizard onSubmit={handleGenerateEstimate} />;
     }

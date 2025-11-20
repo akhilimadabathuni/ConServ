@@ -3,14 +3,16 @@
 import React, { useState, useRef, useEffect, memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ProjectPlan, BudgetItem, MaterialQuantity } from '../types';
-import { SendIcon, ChevronDownIcon, MaterialsIcon, ShieldCheckIcon, HandshakeIcon } from './Icons';
+import { SendIcon, ChevronDownIcon, MaterialsIcon, ShieldCheckIcon, HandshakeIcon, SparklesIcon } from './Icons';
 import { Suggestions } from './Suggestions';
+import { analyzeUserMessageTone, getNegotiationTip } from '../services/geminiService';
 
 interface BudgetReviewProps {
     project: ProjectPlan;
     onSendMessage: (message: string) => void;
     onFinalize: () => void;
     onUpdateMaterialTotalQuantity: (materialName: string, newTotalQuantity: number) => void;
+    onAddAdvisorMessage: (message: string) => void;
 }
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
@@ -93,47 +95,72 @@ const InteractiveMaterials: React.FC<{
   }, [materials]);
 
   const MaterialRow = ({ name, data }: { name: string; data: { unit: string; totalQuantity: number }}) => {
-    const [quantity, setQuantity] = useState(data.totalQuantity);
-    const debouncedQuantity = useDebounce(quantity, 500);
+    const [localQuantity, setLocalQuantity] = useState(String(data.totalQuantity));
+    const [error, setError] = useState<string | null>(null);
+    const debouncedQuantity = useDebounce(localQuantity, 500);
 
     // Sync local state with parent props when they change (e.g., from undo/redo)
     useEffect(() => {
-        // Only update if the debounced value is not currently trying to be sent,
-        // and if the prop value is significantly different.
-        if (debouncedQuantity === quantity && data.totalQuantity !== quantity) {
-           setQuantity(data.totalQuantity);
+        const propValue = String(data.totalQuantity);
+        if (propValue !== localQuantity) {
+            setLocalQuantity(propValue);
         }
-    }, [data.totalQuantity, debouncedQuantity, quantity]);
+    // We only want this to run when the prop changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [data.totalQuantity]);
 
     useEffect(() => {
-        // Trigger update only if the debounced value is different from the original prop value
-        if (debouncedQuantity !== data.totalQuantity) {
-            onUpdate(name, debouncedQuantity);
+        const numValue = parseFloat(debouncedQuantity);
+        if (isNaN(numValue) || numValue < 0) {
+            // Error state is handled by live validation, do nothing on debounce
+            return;
+        }
+
+        if (String(numValue) !== String(data.totalQuantity)) {
+            onUpdate(name, numValue);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [debouncedQuantity, name, onUpdate]);
+    
+    const handleQuantityChange = (value: string) => {
+        setLocalQuantity(value);
+        const num = parseFloat(value);
+        if (value === '' || isNaN(num)) {
+            setError('Invalid number');
+        } else if (num < 0) {
+            setError('Must be non-negative');
+        } else {
+            setError(null);
+        }
+    };
 
     const handleStep = (amount: number) => {
-        const isBags = data.unit.toLowerCase().includes('bag');
-        const newQuantity = Math.max(0, quantity + amount);
-        setQuantity(isBags ? Math.round(newQuantity) : newQuantity);
+        const currentNum = parseFloat(localQuantity) || 0;
+        const newQuantity = Math.max(0, currentNum + amount);
+        handleQuantityChange(String(newQuantity));
     };
+    
+    const isBags = data.unit.toLowerCase().includes('bag');
+    const displayQuantity = isBags ? Math.round(parseFloat(localQuantity) || 0) : localQuantity;
 
     return (
       <div className="grid grid-cols-2 gap-4 items-center py-2 px-3 hover:bg-brand-dark/50 rounded-md">
         <span className="text-sm font-medium text-brand-text">{name}</span>
-        <div className="flex items-center justify-end gap-2">
-            <div className="flex items-center gap-1 bg-brand-dark p-1 rounded-lg border border-brand-border/50">
-                <motion.button type="button" whileTap={{scale:0.9}} onClick={() => handleStep(-1)} className="w-8 h-8 flex items-center justify-center font-bold text-xl text-brand-text-muted hover:text-brand-dark hover:bg-brand-primary rounded-md transition-colors shadow-sm">-</motion.button>
-                <input
-                    type="number"
-                    value={quantity}
-                    onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-                    className="w-20 text-center bg-transparent border-none focus:outline-none focus:ring-0 text-sm font-mono text-brand-text"
-                />
-                <motion.button type="button" whileTap={{scale:0.9}} onClick={() => handleStep(1)} className="w-8 h-8 flex items-center justify-center font-bold text-xl text-brand-text-muted hover:text-brand-dark hover:bg-brand-primary rounded-md transition-colors shadow-sm">+</motion.button>
+        <div className="flex flex-col items-end">
+            <div className="flex items-center justify-end gap-2">
+                <div className={`flex items-center gap-1 bg-brand-dark p-1 rounded-lg border transition-colors ${error ? 'border-danger' : 'border-brand-border/50'}`}>
+                    <motion.button type="button" whileTap={{scale:0.9}} onClick={() => handleStep(-1)} className="w-8 h-8 flex items-center justify-center font-bold text-xl text-brand-text-muted hover:text-brand-dark hover:bg-brand-primary rounded-md transition-colors shadow-sm">-</motion.button>
+                    <input
+                        type="number"
+                        value={localQuantity}
+                        onChange={(e) => handleQuantityChange(e.target.value)}
+                        className="w-20 text-center bg-transparent border-none focus:outline-none focus:ring-0 text-sm font-mono text-brand-text"
+                    />
+                    <motion.button type="button" whileTap={{scale:0.9}} onClick={() => handleStep(1)} className="w-8 h-8 flex items-center justify-center font-bold text-xl text-brand-text-muted hover:text-brand-dark hover:bg-brand-primary rounded-md transition-colors shadow-sm">+</motion.button>
+                </div>
+                <span className="text-xs text-brand-text-muted w-12 text-left">{data.unit}</span>
             </div>
-            <span className="text-xs text-brand-text-muted w-12 text-left">{data.unit}</span>
+            {error && <span className="text-danger text-xs mt-1 mr-14 pr-1">{error}</span>}
         </div>
       </div>
     );
@@ -148,14 +175,16 @@ const InteractiveMaterials: React.FC<{
   );
 };
 
-const BargainingPoint: React.FC<{ icon: React.FC<any>, text: string, onClick: () => void }> = ({ icon: Icon, text, onClick }) => (
+const BargainingPoint: React.FC<{ icon: React.FC<any>, text: string, onClick: () => void, isLoading?: boolean }> = ({ icon: Icon, text, onClick, isLoading = false }) => (
     <motion.button
         onClick={onClick}
+        disabled={isLoading}
         whileHover={{ y: -2, backgroundColor: '#5C564D' }}
-        className="text-left w-full p-3 bg-brand-dark rounded-xl border border-brand-border flex items-center gap-3 text-xs font-bold text-brand-text-muted hover:text-brand-text transition-all"
+        className="text-left w-full p-3 bg-brand-dark rounded-xl border border-brand-border flex items-center gap-3 text-xs font-bold text-brand-text-muted hover:text-brand-text transition-all disabled:opacity-50 disabled:cursor-not-allowed"
     >
-        <Icon className="w-5 h-5 text-brand-primary flex-shrink-0" />
-        <span>{text}</span>
+        <Icon className={`w-5 h-5 text-brand-primary flex-shrink-0 ${isLoading ? 'animate-spin' : ''}`} />
+        <span className="flex-1">{text}</span>
+        {isLoading && <span className="text-xs animate-pulse">Analyzing...</span>}
     </motion.button>
 );
 
@@ -169,8 +198,12 @@ function useDebounce<T>(value: T, delay: number): T {
     return debouncedValue;
 }
 
-export const BudgetReview: React.FC<BudgetReviewProps> = memo(({ project, onSendMessage, onFinalize, onUpdateMaterialTotalQuantity }) => {
+export const BudgetReview: React.FC<BudgetReviewProps> = memo(({ project, onSendMessage, onFinalize, onUpdateMaterialTotalQuantity, onAddAdvisorMessage }) => {
     const [newMessage, setNewMessage] = useState('');
+    const [isAiTipLoading, setIsAiTipLoading] = useState(false);
+    const [isToneAnalysisLoading, setIsToneAnalysisLoading] = useState(false);
+    const [toneAnalysisResult, setToneAnalysisResult] = useState<string | null>(null);
+
     const chatEndRef = useRef<HTMLDivElement>(null);
     const totalCostRef = useRef<HTMLParagraphElement>(null);
 
@@ -198,6 +231,35 @@ export const BudgetReview: React.FC<BudgetReviewProps> = memo(({ project, onSend
     const handleBargainClick = (message: string) => {
         onSendMessage(message);
     };
+
+    const handleGetAiTip = async () => {
+        setIsAiTipLoading(true);
+        try {
+            const tip = await getNegotiationTip(project);
+            onAddAdvisorMessage(tip);
+        } catch (error) {
+            console.error("Failed to get AI tip:", error);
+            onAddAdvisorMessage("I'm sorry, I couldn't generate a tip at this moment. Please try again later.");
+        } finally {
+            setIsAiTipLoading(false);
+        }
+    };
+
+    const handleAnalyzeTone = async () => {
+        if (!newMessage.trim()) return;
+        setIsToneAnalysisLoading(true);
+        setToneAnalysisResult(null);
+        try {
+            const analysis = await analyzeUserMessageTone(newMessage);
+            setToneAnalysisResult(analysis);
+        } catch (error) {
+            console.error("Failed to analyze tone:", error);
+            setToneAnalysisResult("Could not analyze tone.");
+        } finally {
+            setIsToneAnalysisLoading(false);
+        }
+    };
+    
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -308,24 +370,32 @@ export const BudgetReview: React.FC<BudgetReviewProps> = memo(({ project, onSend
                     <div className="space-y-2">
                         <h4 className="text-xs font-bold text-brand-text-muted uppercase tracking-wider text-center mb-2">Negotiation Hub</h4>
                         <BargainingPoint 
+                            icon={SparklesIcon} 
+                            text="Get AI Tip"
+                            onClick={handleGetAiTip}
+                            isLoading={isAiTipLoading}
+                        />
+                        <BargainingPoint 
                             icon={HandshakeIcon} 
                             text="Discuss overall project discount" 
                             onClick={() => handleBargainClick("Could we discuss a possible discount on the overall project cost?")}
                         />
-                        <BargainingPoint 
-                            icon={MaterialsIcon} 
-                            text="Explore material alternatives" 
-                            onClick={() => handleBargainClick("I'm interested in exploring some alternative materials to see if we can optimize the cost. What would you recommend?")}
-                        />
-                        <BargainingPoint 
-                            icon={ShieldCheckIcon} 
-                            text="Inquire about payment schedule" 
-                            onClick={() => handleBargainClick("Is there any flexibility in the payment schedule milestones?")}
-                        />
                     </div>
-                    <form onSubmit={handleSend} className="flex gap-2 pt-4 border-t border-brand-border/50">
-                         <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-grow bg-brand-dark border border-brand-border rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary text-sm text-brand-text placeholder-brand-text-muted transition-all" />
-                         <motion.button whileTap={{scale:0.9}} type="submit" className="p-2.5 bg-brand-primary text-brand-dark rounded-full hover:bg-brand-primary-hover transition-colors shadow-md"><SendIcon className="w-5 h-5"/></motion.button>
+                    <form onSubmit={handleSend} className="relative pt-4 border-t border-brand-border/50">
+                         <div className="flex gap-2">
+                            <input type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Type a message..." className="flex-grow bg-brand-dark border border-brand-border rounded-full px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary text-sm text-brand-text placeholder-brand-text-muted transition-all pr-12" />
+                            <motion.button whileTap={{scale:0.9}} type="submit" className="p-2.5 bg-brand-primary text-brand-dark rounded-full hover:bg-brand-primary-hover transition-colors shadow-md"><SendIcon className="w-5 h-5"/></motion.button>
+                         </div>
+                         <div className="absolute top-1/2 right-[60px] -translate-y-1/2 pt-4">
+                             <button type="button" onClick={handleAnalyzeTone} disabled={!newMessage.trim() || isToneAnalysisLoading} className="text-brand-primary disabled:opacity-30 group">
+                                 <SparklesIcon className="w-5 h-5 group-hover:scale-125 transition-transform" />
+                             </button>
+                             {toneAnalysisResult && (
+                                 <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-brand-text text-brand-dark rounded-lg shadow-xl text-xs font-medium z-20">
+                                     {toneAnalysisResult}
+                                 </div>
+                             )}
+                         </div>
                     </form>
 
                     <motion.button 

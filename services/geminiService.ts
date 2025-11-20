@@ -1,6 +1,5 @@
 
 
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { WizardData, ProjectPlan, SupportTicket } from '../types';
 
@@ -11,8 +10,8 @@ const withRetry = async <T>(fn: () => Promise<T>, retries = 3, delay = 1000): Pr
         return await fn();
     } catch (error: any) {
         if (retries > 0) {
-            // Check for specific retryable errors, e.g., rate limiting
-            if (error.message.includes('429') || error.message.includes('503')) {
+            // Check for specific retryable errors, e.g., rate limiting or server errors
+            if (error.message.includes('429') || error.message.includes('503') || error.message.includes('500')) {
                 console.warn(`API call failed, retrying in ${delay}ms... (${retries} retries left)`);
                 await new Promise(res => setTimeout(res, delay));
                 return withRetry(fn, retries - 1, delay * 2); // Exponential backoff
@@ -218,7 +217,7 @@ export const createProjectPlan = async (data: WizardData): Promise<ProjectPlan> 
     8.  Create 1-2 sample 'weeklyUpdates' with Unsplash photo URLs.
     9.  Create 1-2 sample 'supportTickets' with realistic details.
     10. Create a small, sample 'snagList' for the handover phase.
-    11. Based on the project specifications, provide a realistic estimate for the quantities of key materials (Cement, Steel, Bricks, Sand, Aggregate). For each material, you MUST include a realistic 'unitPrice' based on ${data.location} market rates. **Crucially, you must break down these quantities by floor.** For each material, provide a separate JSON object for the foundation (use 'floor': 0), and then for each subsequent floor (e.g., 'floor': 1 for the ground floor, 'floor': 2 for the first floor, and so on, up to the total number of floors). Add all these detailed entries to the 'materialQuantities' array. **IMPORTANT: For materials with 'bags' as the unit, the quantity MUST be a whole number (integer).**
+    11. Based on the project specifications, provide a realistic estimate for the quantities of key materials (Cement, Steel, Bricks, Sand, Aggregate, Plaster). For each material, you MUST include a realistic 'unitPrice' based on ${data.location} market rates. **Crucially, you must break down these quantities by floor.** For each material, provide a separate JSON object for the foundation (use 'floor': 0), and then for each subsequent floor (e.g., 'floor': 1 for the ground floor, 'floor': 2 for the first floor, and so on, up to the total number of floors). Add all these detailed entries to the 'materialQuantities' array. **IMPORTANT: For materials with 'bags' as the unit, the quantity MUST be a whole number (integer).**
     12. Ensure the entire output is a single, valid JSON object that strictly follows the provided schema. Do not include any text before or after the JSON.
   `;
   
@@ -259,11 +258,10 @@ const generateSuggestion = async (prompt: string): Promise<string> => {
    const generate = async () => {
        try {
         const response = await ai.models.generateContent({
-          model: 'gemini-3-pro-preview',
+          model: 'gemini-2.5-flash',
           contents: prompt,
           config: {
             temperature: 0.5,
-            thinkingConfig: { thinkingBudget: 32768 },
           },
         });
 
@@ -375,4 +373,48 @@ export const analyzeSupportTicket = async (description: string): Promise<{ subje
     }
   };
   return withRetry(generate);
+};
+
+export const getNegotiationTip = async (projectPlan: ProjectPlan): Promise<string> => {
+    const prompt = `
+    You are an expert negotiation coach specializing in Indian construction projects. A user is about to negotiate their project plan.
+    Analyze their entire plan and provide ONE highly specific, actionable, and insightful negotiation tip. 
+    Focus on a single area that has the most potential for a positive outcome (e.g., a specific material, a labor cost item, payment terms).
+    Your tone should be that of a helpful, savvy advisor. Start your response with "Here's a strategic tip for your negotiation:".
+    Do not use markdown lists. Keep it a single, powerful paragraph.
+
+    Project Context:
+    ${JSON.stringify({ 
+        location: projectPlan.wizardData.location,
+        quality: projectPlan.wizardData.constructionQuality,
+        totalCost: projectPlan.totalCost,
+        materials: projectPlan.materialQuantities.map(m => m.material),
+        budget: projectPlan.budgetBreakdown.map(b => ({ section: b.sectionName, cost: b.totalCost})),
+    }, null, 2)}
+  `;
+  return generateSuggestion(prompt);
+};
+
+export const analyzeUserMessageTone = async (message: string): Promise<string> => {
+    const prompt = `
+    You are a communication expert. Analyze the tone and clarity of the following user message intended for a project contractor.
+    Provide a very brief, one-sentence suggestion for improvement. If the message is already good, simply say "This message is clear and professional."
+    Focus on making the message more effective for negotiation.
+
+    User Message: "${message}"
+    `;
+    const generate = async () => {
+       try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-flash-lite-latest',
+          contents: prompt,
+          config: { temperature: 0.3 },
+        });
+        return response.text.trim();
+      } catch (error) {
+        console.error("Error analyzing message tone:", error);
+        throw new Error("Failed to analyze message.");
+      }
+   };
+   return withRetry(generate);
 };

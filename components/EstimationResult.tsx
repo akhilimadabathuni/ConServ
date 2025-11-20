@@ -1,9 +1,7 @@
-
-
 import React, { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import type { ProjectPlan, SupportTicket, SnagListItem, WeeklyUpdate, TimelineEvent, BudgetSection, MaterialQuantity, BudgetItem } from '../types';
-import { BudgetIcon, ProgressIcon, SupportIcon, HandoverIcon, SendIcon, PlusCircleIcon, BuildingIcon, MaterialsIcon, ChevronDownIcon, SparklesIcon, WarningIcon, ZoomInIcon, ZoomOutIcon, RefreshIcon, MoveIcon, Rotate3dIcon, UndoIcon, RedoIcon } from './Icons';
+import { BudgetIcon, ProgressIcon, SupportIcon, HandoverIcon, SendIcon, PlusCircleIcon, BuildingIcon, MaterialsIcon, ChevronDownIcon, SparklesIcon, WarningIcon, ZoomInIcon, ZoomOutIcon, RefreshIcon, MoveIcon, Rotate3dIcon, UndoIcon, RedoIcon, CheckboxIcon, CheckboxCheckedIcon, SearchIcon, ScaleIcon, XIcon } from './Icons';
 import { analyzeSupportTicket } from '../services/geminiService';
 
 type DashboardTab = 'Progress' | 'Budget' | 'Support' | 'Handover' | '3D View' | 'Materials';
@@ -18,6 +16,7 @@ interface ProjectDashboardProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  onBulkUpdateMaterials: (selectedMaterials: string[], action: 'increase' | 'decrease', type: 'quantity' | 'price', percentage: number) => void;
 }
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
@@ -205,15 +204,24 @@ const ProgressView: React.FC<{ timeline: TimelineEvent[], updates: WeeklyUpdate[
     );
 });
 
-const BudgetItemRow: React.FC<{ item: BudgetItem }> = memo(({ item }) => {
-    const [isOpen, setIsOpen] = useState(false);
+const BudgetItemRow: React.FC<{ item: BudgetItem, onClick: () => void, isOpen: boolean }> = memo(({ item, onClick, isOpen }) => {
     const hasFloorBreakdown = item.floorBreakdown && item.floorBreakdown.length > 0;
+    
+    // Calculate chart data for bar chart
+    const barChartData = useMemo(() => {
+        if (!hasFloorBreakdown) return [];
+        const maxCost = Math.max(...item.floorBreakdown.map(fb => fb.cost));
+        return item.floorBreakdown.map(fb => ({
+            ...fb,
+            width: maxCost > 0 ? (fb.cost / maxCost) * 100 : 0
+        }));
+    }, [item.floorBreakdown, hasFloorBreakdown]);
 
     return (
         <div className="border-b border-brand-border/30 last:border-0">
             <div
-                className={`flex justify-between items-center py-3 ${hasFloorBreakdown ? 'cursor-pointer hover:bg-brand-dark/30' : ''}`}
-                onClick={() => hasFloorBreakdown && setIsOpen(!isOpen)}
+                className={`flex justify-between items-center py-3 px-3 transition-colors ${hasFloorBreakdown ? 'cursor-pointer hover:bg-brand-dark/30' : ''}`}
+                onClick={onClick}
             >
                 <span className="text-sm text-brand-text-muted flex items-center gap-2">
                     {item.item}
@@ -233,14 +241,27 @@ const BudgetItemRow: React.FC<{ item: BudgetItem }> = memo(({ item }) => {
                         exit={{ height: 0, opacity: 0 }}
                         className="overflow-hidden"
                     >
-                        <ul className="pl-6 pr-2 py-2 bg-brand-dark/20 border-l-2 border-brand-primary/50">
-                            {item.floorBreakdown.map((floor, idx) => (
-                                <li key={idx} className="flex justify-between text-xs py-1.5">
-                                    <span className="text-brand-text-muted/80">{floor.floor}</span>
-                                    <span className="font-mono text-brand-text/90">{formatCurrency(floor.cost)}</span>
-                                </li>
-                            ))}
-                        </ul>
+                        <div className="pl-6 pr-2 py-4 bg-brand-dark/20 border-l-2 border-brand-primary/50">
+                            <h4 className="text-xs font-bold text-brand-text-muted uppercase tracking-wider mb-3">Cost per Floor</h4>
+                            <ul className="space-y-3">
+                                {barChartData.map((floor, idx) => (
+                                    <li key={idx}>
+                                        <div className="flex justify-between items-center text-xs mb-1">
+                                            <span className="text-brand-text-muted/80">{floor.floor}</span>
+                                            <span className="font-mono text-brand-text/90">{formatCurrency(floor.cost)}</span>
+                                        </div>
+                                        <div className="h-2 bg-brand-border/30 rounded-full">
+                                            <motion.div
+                                                className="h-2 bg-brand-primary rounded-full"
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${floor.width}%` }}
+                                                transition={{ duration: 0.5, ease: 'easeOut', delay: idx * 0.05 }}
+                                            />
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -251,6 +272,7 @@ const BudgetItemRow: React.FC<{ item: BudgetItem }> = memo(({ item }) => {
 
 const BudgetView: React.FC<{ budgetBreakdown: BudgetSection[], totalCost: number }> = memo(({ budgetBreakdown, totalCost }) => {
     const [activeSection, setActiveSection] = useState<string | null>(null);
+    const [openBudgetItems, setOpenBudgetItems] = useState<Record<string, boolean>>({});
     const [hoveredSection, setHoveredSection] = useState<string | null>(null);
     const accordionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -267,8 +289,12 @@ const BudgetView: React.FC<{ budgetBreakdown: BudgetSection[], totalCost: number
             }, 300); // Allow time for accordion animation
         }
     };
+    
+    const toggleBudgetItem = (sectionName: string, itemName: string) => {
+        const key = `${sectionName}-${itemName}`;
+        setOpenBudgetItems(prev => ({ ...prev, [key]: !prev[key] }));
+    };
 
-    // Calculate chart data
     const chartData = useMemo(() => {
         let currentAngle = 0;
         return budgetBreakdown.map((section, index) => {
@@ -293,9 +319,17 @@ const BudgetView: React.FC<{ budgetBreakdown: BudgetSection[], totalCost: number
         });
     }, [budgetBreakdown, totalCost]);
 
+    const callbackRef = useCallback((node: HTMLDivElement | null) => {
+      // This callback ref is used to fix a TypeScript error.
+      // It ensures the function passed to the ref prop returns void.
+      if (node) {
+        // You can perform actions with the node here if needed
+      }
+    }, []);
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            <div className="bg-brand-container/80 backdrop-blur-sm rounded-2xl p-6 border border-brand-border shadow-soft flex flex-col items-center md:sticky top-28">
+            <div className="bg-brand-container/80 backdrop-blur-sm rounded-2xl p-6 border border-brand-border shadow-soft flex flex-col items-center md:sticky top-28" ref={callbackRef}>
                 <h3 className="text-lg font-bold text-brand-text mb-4 uppercase tracking-wide">Cost Distribution</h3>
                 <div className="relative w-64 h-64">
                     <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
@@ -360,7 +394,7 @@ const BudgetView: React.FC<{ budgetBreakdown: BudgetSection[], totalCost: number
                         >
                              <ul className="space-y-1">
                                 {section.items.map((item, idx) => (
-                                    <BudgetItemRow key={idx} item={item} />
+                                    <BudgetItemRow key={idx} item={item} isOpen={!!openBudgetItems[`${section.sectionName}-${item.item}`]} onClick={() => toggleBudgetItem(section.sectionName, item.item)} />
                                 ))}
                             </ul>
                         </Accordion>
@@ -604,57 +638,218 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-const MaterialFloorRow = memo(({ entry, onUpdate }: { entry: MaterialQuantity, onUpdate: (floor: number, qty: number, price: number) => void }) => {
-    const [quantity, setQuantity] = useState(entry.quantity);
-    const [price, setPrice] = useState(entry.unitPrice);
-
-    const debouncedQuantity = useDebounce(quantity, 500);
-    const debouncedPrice = useDebounce(price, 500);
-
-    // Sync local state with parent props for undo/redo
-    useEffect(() => {
-        setQuantity(entry.quantity);
-        setPrice(entry.unitPrice);
-    }, [entry.quantity, entry.unitPrice]);
-
-    useEffect(() => {
-        if (debouncedQuantity !== entry.quantity || debouncedPrice !== entry.unitPrice) {
-            onUpdate(entry.floor, debouncedQuantity, debouncedPrice);
-        }
-    }, [debouncedQuantity, debouncedPrice, entry, onUpdate]);
-    
-    const getFloorName = (floor: number) => {
-        if (floor === 0) return 'Foundation';
-        return `Floor ${floor}`;
+// A reusable stepper control for numeric inputs, providing a more intuitive and tactile editing experience.
+const NumericStepper = memo(({ value, onChange, error, step = 1, min = 0 }: { value: string, onChange: (v: string) => void, error: string | null, step?: number, min?: number }) => {
+    const handleStep = (amount: number) => {
+        const currentNum = parseFloat(value) || 0;
+        // Use precision to handle floating point issues
+        const precision = Math.pow(10, String(step).includes('.') ? String(step).split('.')[1].length : 0);
+        const newValue = Math.max(min, (Math.round((currentNum + amount) * precision) / precision));
+        onChange(String(newValue));
     };
 
     return (
-        <div className="grid grid-cols-10 gap-4 items-center py-2 px-3 hover:bg-brand-dark/50 rounded-md">
-            <span className="col-span-3 text-sm text-brand-text-muted">{getFloorName(entry.floor)}</span>
-            <div className="col-span-3">
+        <div className="flex flex-col items-end">
+            <div className={`flex items-center gap-1 bg-brand-dark p-1 rounded-lg border transition-colors ${error ? 'border-danger' : 'border-brand-border/50'}`}>
+                <motion.button type="button" whileTap={{scale:0.9}} onClick={() => handleStep(-step)} className="w-7 h-7 flex items-center justify-center font-bold text-lg text-brand-text-muted hover:text-brand-dark hover:bg-brand-primary rounded-md transition-colors shadow-sm">-</motion.button>
                 <input
                     type="number"
-                    value={quantity}
-                    onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-                    className="w-full text-right bg-brand-dark border border-brand-border rounded-lg px-2 py-1 text-sm font-mono text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="w-20 text-center bg-transparent border-none focus:outline-none focus:ring-0 text-sm font-mono text-brand-text [appearance:textfield]"
                 />
+                <motion.button type="button" whileTap={{scale:0.9}} onClick={() => handleStep(step)} className="w-7 h-7 flex items-center justify-center font-bold text-lg text-brand-text-muted hover:text-brand-dark hover:bg-brand-primary rounded-md transition-colors shadow-sm">+</motion.button>
             </div>
-             <div className="col-span-3">
-                <input
-                    type="number"
-                    value={price}
-                    onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-                    className="w-full text-right bg-brand-dark border border-brand-border rounded-lg px-2 py-1 text-sm font-mono text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-primary/50"
-                />
-            </div>
-            <span className="col-span-1 text-right text-sm font-mono text-brand-text-muted">{formatCurrency(quantity * price)}</span>
+            {error && <span className="text-danger text-xs mt-1 text-right pr-2">{error}</span>}
         </div>
     );
 });
 
-const MaterialsView: React.FC<{ materials: MaterialQuantity[], onUpdateMaterialFloorEntry: ProjectDashboardProps['onUpdateMaterialFloorEntry'], onUndo: () => void, onRedo: () => void, canUndo: boolean, canRedo: boolean }> = memo(({ materials, onUpdateMaterialFloorEntry, onUndo, onRedo, canUndo, canRedo }) => {
-    const [openMaterial, setOpenMaterial] = useState<string | null>(null);
+// Refactored component to use the new NumericStepper for a more intuitive and tactile editing experience.
+const MaterialFloorRow = memo(({ entry, onUpdate }: { entry: MaterialQuantity, onUpdate: (floor: number, qty: number, price: number) => void }) => {
+    const [localQuantity, setLocalQuantity] = useState(String(entry.quantity));
+    const [localPrice, setLocalPrice] = useState(String(entry.unitPrice));
+    const [quantityError, setQuantityError] = useState<string|null>(null);
+    const [priceError, setPriceError] = useState<string|null>(null);
 
+    const debouncedQuantity = useDebounce(localQuantity, 500);
+    const debouncedPrice = useDebounce(localPrice, 500);
+
+    // Sync local state with parent props for undo/redo
+    useEffect(() => {
+        setLocalQuantity(String(entry.quantity));
+        setLocalPrice(String(entry.unitPrice));
+    }, [entry.quantity, entry.unitPrice]);
+
+    useEffect(() => {
+        const numQty = parseFloat(debouncedQuantity);
+        const numPrice = parseFloat(debouncedPrice);
+
+        const isQtyValid = !isNaN(numQty) && numQty >= 0;
+        const isPriceValid = !isNaN(numPrice) && numPrice >= 0;
+
+        if (isQtyValid && isPriceValid) {
+            // Only update if the debounced value is different from the prop value to avoid loops
+            if (numQty !== entry.quantity || numPrice !== entry.unitPrice) {
+                onUpdate(entry.floor, numQty, numPrice);
+            }
+        }
+    }, [debouncedQuantity, debouncedPrice, entry, onUpdate]);
+    
+    const handleQuantityChange = (value: string) => {
+        setLocalQuantity(value);
+        const num = parseFloat(value);
+        if (value === '' || isNaN(num)) setQuantityError('Invalid');
+        else if (num < 0) setQuantityError('>= 0');
+        else setQuantityError(null);
+    };
+
+    const handlePriceChange = (value: string) => {
+        setLocalPrice(value);
+        const num = parseFloat(value);
+        if (value === '' || isNaN(num)) setPriceError('Invalid');
+        else if (num < 0) setPriceError('>= 0');
+        else setPriceError(null);
+    };
+
+    const getFloorName = (floor: number) => {
+        if (floor === 0) return 'Foundation';
+        return `Floor ${floor}`;
+    };
+    
+    const isBags = entry.unit.toLowerCase().includes('bag');
+
+    return (
+        <div className="grid grid-cols-11 gap-4 items-start py-2 px-3 hover:bg-brand-dark/50 rounded-md">
+            <span className="col-span-3 text-sm text-brand-text-muted pt-4">{getFloorName(entry.floor)}</span>
+            <div className="col-span-3">
+                <NumericStepper
+                    value={localQuantity}
+                    onChange={handleQuantityChange}
+                    error={quantityError}
+                    step={isBags ? 1 : 0.5}
+                />
+            </div>
+             <div className="col-span-3">
+                <NumericStepper
+                    value={localPrice}
+                    onChange={handlePriceChange}
+                    error={priceError}
+                    step={100}
+                />
+            </div>
+            <span className="col-span-2 text-right text-sm font-mono text-brand-text-muted pt-4">{formatCurrency(parseFloat(localQuantity) * parseFloat(localPrice) || 0)}</span>
+        </div>
+    );
+});
+
+const MaterialComparisonModal: React.FC<{
+    materialA: any;
+    materialB: any | null;
+    allMaterials: any;
+    onSelectB: (name: string) => void;
+    onClose: () => void;
+}> = ({ materialA, materialB, allMaterials, onSelectB, onClose }) => {
+    const materialDescriptions: Record<string, string> = {
+        'Cement': 'A binding agent that sets, hardens, and adheres to other materials to bind them together. Crucial for concrete and mortar.',
+        'Steel': 'Used as reinforcement in concrete (rebar) to provide tensile strength, preventing structures from cracking under tension.',
+        'Bricks': 'A primary walling material, known for its durability, fire resistance, and thermal insulation properties.',
+        'Sand': 'A key component of concrete, mortar, and plaster. Fine sand is used for plaster, while coarse sand is used for concrete.',
+        'Aggregate': 'Coarse particulate material (gravel, crushed stone) used in construction to provide bulk and strength to concrete and asphalt.',
+        'Plaster': 'A protective or decorative coating for walls and ceilings, providing a smooth, durable finish.'
+    };
+    
+    const getDesc = (name: string) => materialDescriptions[name] || 'No description available for this material.';
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-brand-dark/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={onClose}
+        >
+            <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-brand-container p-6 rounded-2xl border border-brand-border shadow-soft w-full max-w-3xl relative"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <button onClick={onClose} className="absolute top-4 right-4 text-brand-text-muted hover:text-brand-text"><XIcon className="w-6 h-6"/></button>
+                <h3 className="font-bold text-lg text-brand-text mb-6 text-center">Compare Materials</h3>
+
+                <div className="grid grid-cols-2 gap-6">
+                    {/* Material A */}
+                    <div className="bg-brand-dark/50 p-4 rounded-xl border border-brand-border">
+                         <h4 className="font-bold text-brand-primary text-xl mb-4">{materialA.name}</h4>
+                         <div className="space-y-3 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-brand-text-muted">Avg. Unit Price:</span>
+                                <span className="font-mono font-bold text-brand-text">{formatCurrency(materialA.avgPrice)} / {materialA.unit}</span>
+                            </div>
+                            <p className="text-brand-text-muted leading-relaxed pt-2 border-t border-brand-border/50">{getDesc(materialA.name)}</p>
+                         </div>
+                    </div>
+                    {/* Material B */}
+                    <div className="p-4 rounded-xl border border-brand-border/50">
+                        <select
+                            value={materialB?.name || ''}
+                            onChange={(e) => onSelectB(e.target.value)}
+                            className="w-full bg-brand-dark border border-brand-border p-3 rounded-lg text-brand-text font-bold mb-4 focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                        >
+                            <option value="" disabled>Select material to compare</option>
+                            {Object.keys(allMaterials)
+                                .filter(name => name !== materialA.name)
+                                .map(name => <option key={name} value={name}>{name}</option>)
+                            }
+                        </select>
+                        {materialB && (
+                            <motion.div initial={{opacity: 0}} animate={{opacity: 1}} className="space-y-3 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-brand-text-muted">Avg. Unit Price:</span>
+                                    <span className="font-mono font-bold text-brand-text">{formatCurrency(materialB.avgPrice)} / {materialB.unit}</span>
+                                </div>
+                                <p className="text-brand-text-muted leading-relaxed pt-2 border-t border-brand-border/50">{getDesc(materialB.name)}</p>
+                            </motion.div>
+                        )}
+                    </div>
+                </div>
+            </motion.div>
+        </motion.div>
+    );
+};
+
+
+const MaterialsView: React.FC<{ materials: MaterialQuantity[], onUpdateMaterialFloorEntry: ProjectDashboardProps['onUpdateMaterialFloorEntry'], onUndo: () => void, onRedo: () => void, canUndo: boolean, canRedo: boolean, onBulkUpdateMaterials: ProjectDashboardProps['onBulkUpdateMaterials'] }> = memo(({ materials, onUpdateMaterialFloorEntry, onUndo, onRedo, canUndo, canRedo, onBulkUpdateMaterials }) => {
+    const [openMaterial, setOpenMaterial] = useState<string | null>(null);
+    const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
+    const [bulkAction, setBulkAction] = useState<{ action: 'increase' | 'decrease', type: 'quantity' | 'price' } | null>(null);
+    const [bulkPercentage, setBulkPercentage] = useState<number>(10);
+    const [searchTerm, setSearchTerm] = useState('');
+    
+    // Comparison Modal State
+    const [comparisonModalOpen, setComparisonModalOpen] = useState(false);
+    const [materialToCompareA, setMaterialToCompareA] = useState<any>(null);
+    const [materialToCompareB, setMaterialToCompareB] = useState<any>(null);
+
+
+    const handleSelectMaterial = (materialName: string) => {
+        setSelectedMaterials(prev => 
+            prev.includes(materialName) 
+            ? prev.filter(m => m !== materialName) 
+            : [...prev, materialName]
+        );
+    };
+
+    const handleConfirmBulkAction = () => {
+        if (bulkAction) {
+            onBulkUpdateMaterials(selectedMaterials, bulkAction.action, bulkAction.type, bulkPercentage);
+            setBulkAction(null);
+            setSelectedMaterials([]);
+        }
+    };
+    
     const groupedMaterials = useMemo(() => {
         const initialValue: Record<string, { unit: string; totalQuantity: number; totalCost: number; originalTotalCost: number; entries: MaterialQuantity[] }> = {};
         return materials.reduce((acc, curr) => {
@@ -675,15 +870,56 @@ const MaterialsView: React.FC<{ materials: MaterialQuantity[], onUpdateMaterialF
         }, initialValue);
     }, [materials]);
 
+    const filteredMaterials = useMemo(() => {
+        if (!searchTerm) return Object.entries(groupedMaterials);
+        return Object.entries(groupedMaterials).filter(([name]) => 
+            name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [groupedMaterials, searchTerm]);
+    
+    const handleOpenCompare = (materialName: string, data: any) => {
+        setMaterialToCompareA({
+            name: materialName,
+            unit: data.unit,
+            avgPrice: data.totalCost / data.totalQuantity
+        });
+        setMaterialToCompareB(null);
+        setComparisonModalOpen(true);
+    };
+
+    const handleSelectCompareB = (materialName: string) => {
+        const data = groupedMaterials[materialName];
+        if(data){
+            setMaterialToCompareB({
+                name: materialName,
+                unit: data.unit,
+                avgPrice: data.totalCost / data.totalQuantity
+            });
+        }
+    };
+
+
     return (
         <div>
-            <div className="flex justify-end items-center mb-4 gap-2">
-                <span className="text-xs font-bold text-brand-text-muted uppercase tracking-wider mr-2">Edit History</span>
-                <button onClick={onUndo} disabled={!canUndo} className="p-2 bg-brand-container rounded-lg border border-brand-border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-brand-dark transition-colors"><UndoIcon className="w-5 h-5 text-brand-text-muted"/></button>
-                <button onClick={onRedo} disabled={!canRedo} className="p-2 bg-brand-container rounded-lg border border-brand-border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-brand-dark transition-colors"><RedoIcon className="w-5 h-5 text-brand-text-muted"/></button>
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                 <div className="relative w-full sm:w-auto">
+                    <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-text-muted pointer-events-none"/>
+                    <input 
+                        type="text"
+                        placeholder="Search materials..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full sm:w-64 bg-brand-container border-2 border-brand-border rounded-full pl-11 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-brand-text transition-all"
+                    />
+                 </div>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-brand-text-muted uppercase tracking-wider mr-2">Edit History</span>
+                    <button onClick={onUndo} disabled={!canUndo} className="p-2 bg-brand-container rounded-lg border border-brand-border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-brand-dark transition-colors"><UndoIcon className="w-5 h-5 text-brand-text-muted"/></button>
+                    <button onClick={onRedo} disabled={!canRedo} className="p-2 bg-brand-container rounded-lg border border-brand-border disabled:opacity-30 disabled:cursor-not-allowed hover:bg-brand-dark transition-colors"><RedoIcon className="w-5 h-5 text-brand-text-muted"/></button>
+                </div>
             </div>
             <div className="space-y-3">
-                {Object.entries(groupedMaterials).map(([name, data]) => {
+                {filteredMaterials.length > 0 ? filteredMaterials.map(([name, data]) => {
                     const isOverBudget = data.totalCost > data.originalTotalCost;
                     const isOpen = openMaterial === name;
                     
@@ -692,57 +928,142 @@ const MaterialsView: React.FC<{ materials: MaterialQuantity[], onUpdateMaterialF
                     }, [name, onUpdateMaterialFloorEntry]);
 
                     return (
-                        <Accordion
-                            key={name}
-                            isOpen={isOpen}
-                            onToggle={() => setOpenMaterial(isOpen ? null : name)}
-                            className="relative overflow-visible"
-                            title={
-                                <div className="grid grid-cols-10 gap-4 items-center w-full">
-                                    <div className="col-span-4 font-bold text-brand-text flex items-center gap-2">
-                                        {name}
-                                        {isOverBudget && (
-                                            <WarningIcon className="w-5 h-5 text-warning animate-pulse" />
-                                        )}
+                        <div className="group relative" key={name}>
+                             <Accordion
+                                isOpen={isOpen}
+                                onToggle={() => setOpenMaterial(isOpen ? null : name)}
+                                title={
+                                    <div className="grid grid-cols-12 gap-4 items-center w-full">
+                                        <button onClick={(e) => {e.stopPropagation(); handleSelectMaterial(name)}} className="col-span-1">
+                                            {selectedMaterials.includes(name) ? <CheckboxCheckedIcon className="w-6 h-6 text-brand-primary" /> : <CheckboxIcon className="w-6 h-6 text-brand-text-muted" />}
+                                        </button>
+                                        <div className="col-span-5 font-bold text-brand-text flex items-center gap-2">
+                                            {name}
+                                            {isOverBudget && (
+                                                <WarningIcon className="w-5 h-5 text-warning animate-pulse" />
+                                            )}
+                                        </div>
+                                        <div className="col-span-3 text-right font-mono text-brand-text-muted">
+                                            {data.totalQuantity.toFixed(2)} {data.unit}
+                                        </div>
+                                        <div className={`col-span-3 text-right font-bold font-mono ${isOverBudget ? 'text-warning' : 'text-brand-primary'}`}>
+                                            {formatCurrency(data.totalCost)}
+                                        </div>
                                     </div>
-                                    <div className="col-span-3 text-right font-mono text-brand-text-muted">
-                                        {data.totalQuantity.toFixed(2)} {data.unit}
+                                }
+                            >
+                                <div className="space-y-2">
+                                    <div className="grid grid-cols-11 gap-4 text-xs font-bold text-brand-text-muted uppercase tracking-wider mt-4 pt-4 border-t border-brand-border/50 px-3">
+                                        <span className="col-span-3">Floor / Level</span>
+                                        <span className="col-span-3 text-right">Quantity ({data.unit})</span>
+                                        <span className="col-span-3 text-right">Unit Price</span>
+                                        <span className="col-span-2 text-right">Cost</span>
                                     </div>
-                                    <div className={`col-span-3 text-right font-bold font-mono ${isOverBudget ? 'text-warning' : 'text-brand-primary'}`}>
-                                        {formatCurrency(data.totalCost)}
-                                    </div>
+                                    <AnimatePresence>
+                                        {data.entries.sort((a,b) => a.floor - b.floor).map((entry, index) => (
+                                            <motion.div
+                                                key={entry.floor}
+                                                initial={{ opacity: 0, y: -10 }}
+                                                animate={{ opacity: 1, y: 0, transition: { delay: index * 0.05 } }}
+                                                exit={{ opacity: 0, y: -10 }}
+                                            >
+                                                <MaterialFloorRow entry={entry} onUpdate={handleUpdate} />
+                                            </motion.div>
+                                        ))}
+                                    </AnimatePresence>
                                 </div>
-                            }
-                        >
-                            <div className="space-y-2">
-                                <div className="grid grid-cols-10 gap-4 text-xs font-bold text-brand-text-muted uppercase tracking-wider mt-4 pt-4 border-t border-brand-border/50 px-3">
-                                    <span className="col-span-3">Floor / Level</span>
-                                    <span className="col-span-3 text-right">Quantity ({data.unit})</span>
-                                    <span className="col-span-3 text-right">Unit Price</span>
-                                    <span className="col-span-1 text-right">Cost</span>
-                                </div>
-                                <AnimatePresence>
-                                    {data.entries.sort((a,b) => a.floor - b.floor).map((entry, index) => (
-                                        <motion.div
-                                            key={entry.floor}
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0, transition: { delay: index * 0.05 } }}
-                                            exit={{ opacity: 0, y: -10 }}
-                                        >
-                                            <MaterialFloorRow entry={entry} onUpdate={handleUpdate} />
-                                        </motion.div>
-                                    ))}
-                                </AnimatePresence>
-                            </div>
-                        </Accordion>
+                            </Accordion>
+                             <div className="absolute top-4 right-12 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                  onClick={() => handleOpenCompare(name, data)}
+                                  className="p-1.5 bg-brand-dark rounded-full border border-brand-border text-brand-text-muted hover:text-brand-primary hover:border-brand-primary transition-all"
+                                >
+                                  <ScaleIcon className="w-4 h-4" />
+                                </button>
+                              </div>
+                        </div>
                     );
-                })}
+                }) : (
+                    <div className="text-center py-12 bg-brand-container/50 rounded-xl border border-brand-border border-dashed">
+                        <SearchIcon className="w-10 h-10 text-brand-text-muted mx-auto mb-4" />
+                        <h4 className="font-bold text-brand-text">No Materials Found</h4>
+                        <p className="text-sm text-brand-text-muted mt-1">Your search for "{searchTerm}" did not match any materials.</p>
+                    </div>
+                )}
             </div>
+            <AnimatePresence>
+                {comparisonModalOpen && materialToCompareA && (
+                    <MaterialComparisonModal
+                        materialA={materialToCompareA}
+                        materialB={materialToCompareB}
+                        allMaterials={groupedMaterials}
+                        onSelectB={handleSelectCompareB}
+                        onClose={() => setComparisonModalOpen(false)}
+                    />
+                )}
+            </AnimatePresence>
+            <AnimatePresence>
+                {selectedMaterials.length > 0 && (
+                     <motion.div 
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 100, opacity: 0 }}
+                        className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-xl z-40"
+                     >
+                        <div className="bg-brand-container/90 backdrop-blur-xl p-4 rounded-2xl shadow-glass border border-brand-border mx-4 flex items-center justify-between gap-4">
+                            <span className="text-sm font-bold text-brand-text">{selectedMaterials.length} item(s) selected</span>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setBulkAction({ action: 'increase', type: 'quantity' })} className="text-xs font-bold bg-brand-dark hover:bg-brand-border/50 text-brand-text px-3 py-2 rounded-lg">Qty +%</button>
+                                <button onClick={() => setBulkAction({ action: 'decrease', type: 'quantity' })} className="text-xs font-bold bg-brand-dark hover:bg-brand-border/50 text-brand-text px-3 py-2 rounded-lg">Qty -%</button>
+                                <button onClick={() => setBulkAction({ action: 'increase', type: 'price' })} className="text-xs font-bold bg-brand-dark hover:bg-brand-border/50 text-brand-text px-3 py-2 rounded-lg">Price +%</button>
+                                <button onClick={() => setBulkAction({ action: 'decrease', type: 'price' })} className="text-xs font-bold bg-brand-dark hover:bg-brand-border/50 text-brand-text px-3 py-2 rounded-lg">Price -%</button>
+                            </div>
+                            <button onClick={() => setSelectedMaterials([])} className="text-xs font-bold text-brand-text-muted hover:text-brand-text">Clear</button>
+                        </div>
+                     </motion.div>
+                )}
+            </AnimatePresence>
+            <AnimatePresence>
+                {bulkAction && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-brand-dark/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    >
+                         <motion.div 
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-brand-container p-6 rounded-2xl border border-brand-border shadow-soft w-full max-w-md text-center"
+                         >
+                            <h3 className="font-bold text-lg text-brand-text mb-2">Confirm Bulk Edit</h3>
+                            <p className="text-sm text-brand-text-muted mb-6">
+                                You are about to <span className="text-brand-primary font-bold">{bulkAction.action}</span> the <span className="text-brand-primary font-bold">{bulkAction.type}</span> of {selectedMaterials.length} item(s) by:
+                            </p>
+                            <div className="mb-6">
+                                 <input 
+                                    type="range" 
+                                    min="1" max="50" step="1" 
+                                    value={bulkPercentage} 
+                                    onChange={(e) => setBulkPercentage(parseInt(e.target.value))}
+                                    className="w-full"
+                                />
+                                <div className="text-center font-bold text-brand-primary text-2xl mt-2">{bulkPercentage}%</div>
+                            </div>
+                            <div className="flex gap-4">
+                                <button onClick={() => setBulkAction(null)} className="flex-1 bg-brand-dark hover:bg-brand-border/50 text-brand-text font-bold py-3 rounded-xl">Cancel</button>
+                                <button onClick={handleConfirmBulkAction} className="flex-1 bg-brand-primary hover:bg-brand-primary-hover text-brand-dark font-bold py-3 rounded-xl">Apply Change</button>
+                            </div>
+                         </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 });
 
-export const ProjectDashboard: React.FC<ProjectDashboardProps> = memo(({ project, onReset, onRaiseTicket, onAddUserNote, onUpdateMaterialFloorEntry, onUndo, onRedo, canUndo, canRedo }) => {
+export const ProjectDashboard: React.FC<ProjectDashboardProps> = memo(({ project, onReset, onRaiseTicket, onAddUserNote, onUpdateMaterialFloorEntry, onUndo, onRedo, canUndo, canRedo, onBulkUpdateMaterials }) => {
     const [activeTab, setActiveTab] = useState<DashboardTab>('Progress');
     
     const tabs: { id: DashboardTab; icon: React.FC<any> }[] = [
@@ -796,7 +1117,7 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = memo(({ project
                         {activeTab === 'Progress' && <ProgressView timeline={project.timeline} updates={project.weeklyUpdates} onAddUserNote={onAddUserNote} />}
                         {activeTab === 'Budget' && <BudgetView budgetBreakdown={project.budgetBreakdown} totalCost={project.totalCost} />}
                         {activeTab === '3D View' && <ThreeDModelView floors={project.wizardData.floors || 1} />}
-                        {activeTab === 'Materials' && <MaterialsView materials={project.materialQuantities} onUpdateMaterialFloorEntry={onUpdateMaterialFloorEntry} onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} />}
+                        {activeTab === 'Materials' && <MaterialsView materials={project.materialQuantities} onUpdateMaterialFloorEntry={onUpdateMaterialFloorEntry} onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} onBulkUpdateMaterials={onBulkUpdateMaterials} />}
                         {activeTab === 'Support' && <SupportView tickets={project.supportTickets} onRaiseTicket={onRaiseTicket} />}
                         {activeTab === 'Handover' && <HandoverView snagList={project.snagList} />}
                     </motion.div>

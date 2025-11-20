@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -12,40 +10,53 @@ const loadingTexts = [
     "Generating cost-benefit analysis..."
 ];
 
-const AnimatedLogo = () => (
-    <motion.svg 
-        width="200" 
-        height="200" 
+const BlueprintAnimation = () => (
+    <motion.svg
+        width="200"
+        height="200"
         viewBox="0 0 200 200"
         initial="hidden"
         animate="visible"
+        className="relative"
     >
-        {/* House */}
+        {/* Grid */}
+        <defs>
+            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#5C564D" strokeWidth="0.5"/>
+            </pattern>
+        </defs>
+        <motion.rect 
+            width="200" 
+            height="200" 
+            fill="url(#grid)" 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 0.3 }} 
+            transition={{ duration: 1 }}
+        />
+
+        {/* House Schematic */}
         <motion.path
-            d="M 50 150 L 50 90 L 100 40 L 150 90 L 150 150 L 50 150 Z"
+            d="M 40 160 V 90 L 100 30 L 160 90 V 160 H 40 Z M 80 160 V 120 H 120 V 160 M 90 90 H 110 V 70 H 90 Z"
             fill="none"
-            stroke="#FFB800"
-            strokeWidth="4"
+            stroke="url(#gold-gradient)"
+            strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
             variants={{
                 hidden: { pathLength: 0, opacity: 0 },
-                visible: { pathLength: 1, opacity: 1, transition: { duration: 1.5, ease: "easeInOut" } }
+                visible: {
+                    pathLength: 1,
+                    opacity: 1,
+                    transition: { duration: 2, ease: "easeInOut" }
+                }
             }}
         />
-        {/* Crane */}
-        <motion.path
-            d="M 120 150 L 120 60 L 180 60 L 180 80"
-            fill="none"
-            stroke="#A8A29E"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-             variants={{
-                hidden: { pathLength: 0, opacity: 0 },
-                visible: { pathLength: 1, opacity: 1, transition: { delay: 0.5, duration: 1.5, ease: "easeInOut" } }
-            }}
-        />
+        <defs>
+            <linearGradient id="gold-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FFD04D" />
+                <stop offset="100%" stopColor="#FFB800" />
+            </linearGradient>
+        </defs>
     </motion.svg>
 );
 
@@ -86,7 +97,7 @@ export const Loader: React.FC = () => {
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.5, ease: "backOut" }}
       >
-          <AnimatedLogo />
+          <BlueprintAnimation />
           <motion.div 
              className="absolute inset-0 bg-brand-primary/20 blur-3xl rounded-full -z-10"
              animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
