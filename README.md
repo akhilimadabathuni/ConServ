@@ -1,6 +1,5 @@
-# <img width="1101" height="246" alt="image" src="https://github.com/user-attachments/assets/312dbddc-c8a4-413f-ae45-dcd143f6c5cb" /> : Your Complete Building Partner
+# <img width="184" height="41" alt="image" src="https://github.com/user-attachments/assets/312dbddc-c8a4-413f-ae45-dcd143f6c5cb" /> : Your Complete Building Partner
 
-<img width="184" height="41" alt="image" src="https://github.com/user-attachments/assets/8544ebc0-c46d-434e-b149-c82bf4c1c34d" />
 
 
 **ConServ** is a high-fidelity clickable prototype demonstrating an AI-powered platform designed to radically simplify the home construction process in India. It transforms an opaque, complex, and often stressful journey into a transparent, interactive, and empowering experience.
