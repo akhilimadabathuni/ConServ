@@ -267,9 +267,10 @@ const App: React.FC = () => {
     updateProjectPlanWithHistory(draft => {
         draft.paymentStatus = 'Booking Paid';
         const bookingMilestone = draft.paymentSchedule.find(p => p.status === 'Due');
-        if (bookingMilestone) {
-            bookingMilestone.status = 'Completed';
-        }
+        if (bookingMilestone) bookingMilestone.status = 'Completed';
+        
+        const nextMilestone = draft.paymentSchedule.find(p => p.status === 'Pending');
+        if (nextMilestone) nextMilestone.status = 'Due';
     });
     setViewMode('dashboard');
   }, [updateProjectPlanWithHistory]);
@@ -335,6 +336,19 @@ const App: React.FC = () => {
     });
   }, [updateProjectPlanWithHistory]);
 
+  const handleMarkMilestonePaid = useCallback((milestoneName: string) => {
+      updateProjectPlanWithHistory(draft => {
+          const milestone = draft.paymentSchedule.find(p => p.milestone === milestoneName);
+          if (milestone && milestone.status === 'Due') {
+              milestone.status = 'Completed';
+              const nextPendingIndex = draft.paymentSchedule.findIndex(p => p.status === 'Pending');
+              if (nextPendingIndex !== -1) {
+                  draft.paymentSchedule[nextPendingIndex].status = 'Due';
+              }
+          }
+      });
+  }, [updateProjectPlanWithHistory]);
+
 
   const handleReset = useCallback(() => {
     setProjectPlan(null);
@@ -385,7 +399,7 @@ const App: React.FC = () => {
       case 'deal_closure':
         return projectPlan && <DealClosure project={projectPlan} onPayment={handlePayment} onBack={() => setViewMode('budget_review')} />;
       case 'dashboard':
-        return projectPlan && <ProjectDashboard project={projectPlan} onReset={handleReset} onRaiseTicket={handleRaiseTicket} onAddUserNote={handleAddUserNote} onUpdateMaterialFloorEntry={handleUpdateMaterialFloorEntry} onUndo={handleUndo} onRedo={handleRedo} canUndo={canUndo} canRedo={canRedo} onBulkUpdateMaterials={handleBulkUpdateMaterials} />;
+        return projectPlan && <ProjectDashboard project={projectPlan} onReset={handleReset} onRaiseTicket={handleRaiseTicket} onAddUserNote={handleAddUserNote} onUpdateMaterialFloorEntry={handleUpdateMaterialFloorEntry} onUndo={handleUndo} onRedo={handleRedo} canUndo={canUndo} canRedo={canRedo} onBulkUpdateMaterials={handleBulkUpdateMaterials} onMarkMilestonePaid={handleMarkMilestonePaid} />;
       default:
         return <Wizard onSubmit={handleGenerateEstimate} />;
     }

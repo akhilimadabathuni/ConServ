@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import type { ProjectPlan, SupportTicket, SnagListItem, WeeklyUpdate, TimelineEvent, BudgetSection, MaterialQuantity, BudgetItem } from '../types';
-import { BudgetIcon, ProgressIcon, SupportIcon, HandoverIcon, SendIcon, PlusCircleIcon, BuildingIcon, MaterialsIcon, ChevronDownIcon, SparklesIcon, WarningIcon, ZoomInIcon, ZoomOutIcon, RefreshIcon, MoveIcon, Rotate3dIcon, UndoIcon, RedoIcon, CheckboxIcon, CheckboxCheckedIcon, SearchIcon, ScaleIcon, XIcon } from './Icons';
+import type { ProjectPlan, SupportTicket, SnagListItem, WeeklyUpdate, TimelineEvent, BudgetSection, MaterialQuantity, BudgetItem, PaymentMilestone } from '../types';
+import { BudgetIcon, ProgressIcon, SupportIcon, HandoverIcon, SendIcon, PlusCircleIcon, BuildingIcon, MaterialsIcon, ChevronDownIcon, SparklesIcon, WarningIcon, ZoomInIcon, ZoomOutIcon, RefreshIcon, MoveIcon, Rotate3dIcon, UndoIcon, RedoIcon, CheckboxIcon, CheckboxCheckedIcon, SearchIcon, ScaleIcon, XIcon, PaymentsIcon, CheckCircleIcon, CreditCardIcon } from './Icons';
 import { analyzeSupportTicket } from '../services/geminiService';
 
-type DashboardTab = 'Progress' | 'Budget' | 'Support' | 'Handover' | '3D View' | 'Materials';
+type DashboardTab = 'Progress' | 'Budget' | 'Support' | 'Handover' | '3D View' | 'Materials' | 'Payments';
 
 interface ProjectDashboardProps {
   project: ProjectPlan;
@@ -17,6 +17,7 @@ interface ProjectDashboardProps {
   canUndo: boolean;
   canRedo: boolean;
   onBulkUpdateMaterials: (selectedMaterials: string[], action: 'increase' | 'decrease', type: 'quantity' | 'price', percentage: number) => void;
+  onMarkMilestonePaid: (milestoneName: string) => void;
 }
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
@@ -1063,7 +1064,113 @@ const MaterialsView: React.FC<{ materials: MaterialQuantity[], onUpdateMaterialF
     );
 });
 
-export const ProjectDashboard: React.FC<ProjectDashboardProps> = memo(({ project, onReset, onRaiseTicket, onAddUserNote, onUpdateMaterialFloorEntry, onUndo, onRedo, canUndo, canRedo, onBulkUpdateMaterials }) => {
+const PaymentsView: React.FC<{ schedule: PaymentMilestone[], onMarkPaid: (milestone: string) => void }> = memo(({ schedule, onMarkPaid }) => {
+    const listVariants: Variants = {
+      hidden: { opacity: 0 },
+      visible: {
+        opacity: 1,
+        transition: { staggerChildren: 0.1 },
+      },
+    };
+    
+    const itemVariants: Variants = {
+      hidden: { x: -20, opacity: 0 },
+      visible: { x: 0, opacity: 1, transition: { type: 'spring', stiffness: 100 } },
+    };
+
+    let isDueFound = false;
+    
+    return (
+        <div className="max-w-2xl mx-auto">
+            <h3 className="text-lg font-bold text-brand-text mb-6 uppercase tracking-wide flex items-center gap-2">
+                <PaymentsIcon className="w-5 h-5 text-brand-primary"/> Payment Timeline
+            </h3>
+            <motion.div
+                variants={listVariants}
+                initial="hidden"
+                animate="visible"
+                className="relative pl-8"
+            >
+                 <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-brand-border/50 -z-10"></div>
+
+                {schedule.map((p, index) => {
+                    const isCompleted = p.status === 'Completed';
+                    const isDue = p.status === 'Due';
+                    
+                    const isLineActive = isCompleted || isDue || (!isDueFound && p.status === 'Pending');
+                    if (isDue) isDueFound = true;
+                    
+                    // FIX: Add explicit `Variants` type to resolve Framer Motion transition type error.
+                    const checkmarkVariants: Variants = {
+                        hidden: { pathLength: 0 },
+                        visible: { pathLength: 1, transition: { duration: 0.5, ease: 'easeInOut' } }
+                    };
+
+                    return (
+                        <motion.div variants={itemVariants} key={p.milestone} className="relative pb-8 last:pb-0">
+                            <AnimatePresence>
+                                {isLineActive && 
+                                    <motion.div 
+                                        initial={{ height: 0 }}
+                                        animate={{ height: '100%' }}
+                                        transition={{ duration: 0.5, delay: 0.1 }}
+                                        className="absolute left-[15px] top-2 w-0.5 bg-brand-primary -z-10"
+                                    />
+                                }
+                            </AnimatePresence>
+                            
+                            <div className="absolute -left-[2px] top-1 flex items-center justify-center">
+                                {isCompleted ? (
+                                    <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center">
+                                         <svg className="w-5 h-5 text-brand-dark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <motion.path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" variants={checkmarkVariants} initial="hidden" animate="visible" />
+                                        </svg>
+                                    </div>
+                                ) : isDue ? (
+                                    <div className="w-8 h-8 rounded-full bg-brand-primary border-4 border-brand-dark flex items-center justify-center relative shadow-glow">
+                                        <span className="absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75 animate-ping"></span>
+                                    </div>
+                                ) : (
+                                    <div className="w-8 h-8 rounded-full bg-brand-dark border-2 border-brand-border"></div>
+                                )}
+                            </div>
+                            
+                            <div className="ml-8 p-4 bg-brand-container rounded-2xl border border-brand-border/80 shadow-sm">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <p className="font-bold text-brand-text">{p.milestone} <span className="text-xs text-brand-text-muted font-medium ml-1">({p.percentage}%)</span></p>
+                                        <p className="text-sm text-brand-text-muted mt-1 font-mono">{formatCurrency(p.amount)}</p>
+                                    </div>
+                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider border ${
+                                        isCompleted ? 'bg-success/10 text-success border-success/20' :
+                                        isDue ? 'bg-warning/10 text-warning border-warning/20' :
+                                        'bg-brand-dark/50 text-brand-text-muted border-brand-border'
+                                    }`}>
+                                        {p.status}
+                                    </span>
+                                </div>
+                                {isDue && (
+                                    <motion.button 
+                                        onClick={() => onMarkPaid(p.milestone)}
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        className="w-full bg-brand-primary text-brand-dark font-bold py-2.5 rounded-lg text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-glow transition-shadow"
+                                    >
+                                        <CreditCardIcon className="w-4 h-4"/>
+                                        Pay Now
+                                    </motion.button>
+                                )}
+                            </div>
+                        </motion.div>
+                    );
+                })}
+            </motion.div>
+        </div>
+    );
+});
+
+
+export const ProjectDashboard: React.FC<ProjectDashboardProps> = memo(({ project, onReset, onRaiseTicket, onAddUserNote, onUpdateMaterialFloorEntry, onUndo, onRedo, canUndo, canRedo, onBulkUpdateMaterials, onMarkMilestonePaid }) => {
     const [activeTab, setActiveTab] = useState<DashboardTab>('Progress');
     
     const tabs: { id: DashboardTab; icon: React.FC<any> }[] = [
@@ -1071,6 +1178,7 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = memo(({ project
         { id: 'Budget', icon: BudgetIcon },
         { id: '3D View', icon: BuildingIcon },
         { id: 'Materials', icon: MaterialsIcon },
+        { id: 'Payments', icon: PaymentsIcon },
         { id: 'Support', icon: SupportIcon },
         { id: 'Handover', icon: HandoverIcon },
     ];
@@ -1118,6 +1226,7 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = memo(({ project
                         {activeTab === 'Budget' && <BudgetView budgetBreakdown={project.budgetBreakdown} totalCost={project.totalCost} />}
                         {activeTab === '3D View' && <ThreeDModelView floors={project.wizardData.floors || 1} />}
                         {activeTab === 'Materials' && <MaterialsView materials={project.materialQuantities} onUpdateMaterialFloorEntry={onUpdateMaterialFloorEntry} onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} onBulkUpdateMaterials={onBulkUpdateMaterials} />}
+                        {activeTab === 'Payments' && <PaymentsView schedule={project.paymentSchedule} onMarkPaid={onMarkMilestonePaid} />}
                         {activeTab === 'Support' && <SupportView tickets={project.supportTickets} onRaiseTicket={onRaiseTicket} />}
                         {activeTab === 'Handover' && <HandoverView snagList={project.snagList} />}
                     </motion.div>

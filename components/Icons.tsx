@@ -314,3 +314,9 @@ export const ScaleIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M15 6.75l-3 3-3-3" />
   </svg>
 );
+
+export const PaymentsIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6A2.25 2.25 0 01.75 3.75v-.75A2.25 2.25 0 013 0A.75.75 0 013.75.75v.75m0 0v1.5m0 0A2.25 2.25 0 013 6v1.5m0 0v.75A2.25 2.25 0 01.75 8.25v.75a2.25 2.25 0 012.25 2.25h.75A2.25 2.25 0 016 11.25v-.75a2.25 2.25 0 012.25-2.25h.75A2.25 2.25 0 0111.25 6v.75m-3.75 0v.75a2.25 2.25 0 012.25 2.25m-2.25-2.25a2.25 2.25 0 012.25-2.25M3 3h3.75m6.75 0h.75m-3.75 0h.75m.75 0h.75m2.25 0h3.75m-13.5 0h.75M3 6h.75m-3.75 0h.75m3.75 0h.75m6.75 0h.75m-3.75 0h.75m.75 0h.75M3 9h3.75m-3.75 0h.75m6.75 0h.75m-3.75 0h.75m.75 0h.75m2.25 0h3.75M3 12h3.75m-3.75 0h.75m6.75 0h.75m-3.75 0h.75m.75 0h.75m2.25 0h3.75m-13.5 0h.75M3 15h.75m-3.75 0h.75m3.75 0h.75m6.75 0h.75m-3.75 0h.75m.75 0h.75" />
+    </svg>
+);
