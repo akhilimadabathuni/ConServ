@@ -1,6 +1,7 @@
 # ConServ: Your Complete Building Partner
 
-[Image: ConServ Logo]
+<img width="184" height="41" alt="image" src="https://github.com/user-attachments/assets/8544ebc0-c46d-434e-b149-c82bf4c1c34d" />
+
 
 **ConServ** is a high-fidelity clickable prototype demonstrating an AI-powered platform designed to radically simplify the home construction process in India. It transforms an opaque, complex, and often stressful journey into a transparent, interactive, and empowering experience.
 
