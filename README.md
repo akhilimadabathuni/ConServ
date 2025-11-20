@@ -1,6 +1,6 @@
 # ConServ: Your Complete Building Partner
 
-![ConServ Logo](https://raw.githubusercontent.com/username/repo/main/path/to/logo.png) <!-- Placeholder: Replace with actual logo URL -->
+[Image: ConServ Logo]
 
 **ConServ** is a high-fidelity clickable prototype demonstrating an AI-powered platform designed to radically simplify the home construction process in India. It transforms an opaque, complex, and often stressful journey into a transparent, interactive, and empowering experience.
 
@@ -34,7 +34,7 @@ The application guides the user through a seamless four-step journey, designed t
 
 The journey begins with an intuitive, multi-step wizard. The user provides key details about their dream home—location, size, quality, and specific features. This isn't just a form; it's an engaging process that helps them articulate their vision.
 
-![Blueprint Wizard](https://raw.githubusercontent.com/username/repo/main/path/to/wizard.png) <!-- Placeholder: Image of the wizard screen, showing the stepper and input fields. -->
+[Image: Blueprint Wizard screen, showing the stepper and input fields.]
 
 ### 2. Review: The Interactive Budget
 
@@ -43,13 +43,13 @@ Once the wizard is complete, the AI generates a comprehensive project plan. This
 *   Explore AI-powered suggestions for cost savings and design improvements.
 *   Use the "Negotiation Hub" to discuss the plan with a simulated project advisor.
 
-![Budget Review](https://raw.githubusercontent.com/username/repo/main/path/to/budget-review.png) <!-- Placeholder: Image of the budget review screen, highlighting the cost breakdown and the negotiation chat. -->
+[Image: Budget review screen, highlighting the cost breakdown and the negotiation chat.]
 
 ### 3. Finalize: The Deal Closure
 
 After reviewing and agreeing upon the estimate, the user moves to a secure screen to finalize the agreement. A clear payment timeline is presented, and they can make the initial booking payment to lock in the estimate and officially start the project.
 
-![Deal Closure](https://raw.githubusercontent.com/username/repo/main/path/to/deal-closure.png) <!-- Placeholder: Image of the deal closure screen, showing the payment timeline and final cost. -->
+[Image: Deal closure screen, showing the payment timeline and final cost.]
 
 ### 4. Track: The Live Project Dashboard
 
@@ -59,7 +59,7 @@ This is the user's command center for the entire construction lifecycle. The das
 *   A live project timeline and weekly progress updates with photos.
 *   A support ticket system to manage issues and communication.
 
-![Project Dashboard](https://raw.githubusercontent.com/username/repo/main/path/to/dashboard.png) <!-- Placeholder: Image of the project dashboard, perhaps showing the interactive 3D model or the detailed materials tab. -->
+[Image: Project dashboard, perhaps showing the interactive 3D model or the detailed materials tab.]
 
 ---
 
