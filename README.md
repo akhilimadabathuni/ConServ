@@ -17,7 +17,7 @@ Building a home is a dream for many, but the reality is often a nightmare. The t
 *   **Lack of Control:** Once construction starts, homeowners have little visibility into the day-to-day progress, material usage, and quality of work, creating a constant sense of uncertainty.
 *   **Complexity:** The sheer number of decisions—from foundation type to material choices—is overwhelming for the average person, leading to costly mistakes.
 
-## The Solution: AI-Powered Transparency & Control
+## The Solution: Augmented Intelligence-Powered Transparency & Control
 
 ConServ leverages the power of the Google Gemini API to act as a **"Digital Contractor,"** bringing instant clarity, control, and confidence to the user.
 
