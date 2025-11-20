@@ -6,6 +6,7 @@
 **ConServ** is a high-fidelity clickable prototype demonstrating an AI-powered platform designed to radically simplify the home construction process in India. It transforms an opaque, complex, and often stressful journey into a transparent, interactive, and empowering experience.
 
 ---
+<img width="436" height="415" alt="image" src="https://github.com/user-attachments/assets/47b40390-1d60-41ce-ae64-f90b8db9da9c" />
 
 ## The Problem: The Chaos of Home Construction
 
