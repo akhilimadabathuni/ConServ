@@ -27,6 +27,8 @@ ConServ leverages the power of the Google Gemini API to act as a **"Digital Cont
 *   **A Single Source of Truth:** The live Project Dashboard provides a comprehensive, 360-degree view of the project's entire lifecycle—from timeline and weekly progress photos to support tickets and material management.
 
 ---
+<img width="635" height="343" alt="image" src="https://github.com/user-attachments/assets/90c20830-8939-4f1a-b677-8ce35992192b" />
+
 
 ## The User Journey: From Dream to Dashboard
 
