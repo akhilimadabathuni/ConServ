@@ -43,7 +43,7 @@ The core planning module allows users to define the project scope and instantly 
 * **Interactive Budget Visualization:** Users can view a **Pie Chart** of the total budget and easily **drill down** into specific categories (e.g., Structure, Finishing) to see itemized costs and material requirements.
 * **Granular Cost Breakdown:** View cost distribution per floor for specific budget items.
 
----
+
 
 ### 2. 🧱 Material Management
 
@@ -58,7 +58,7 @@ Take control of your material costs and quantities with interactive, real-time m
 * **Material Comparison:** A dedicated tool to compare the **properties and costs** of different material options side-by-side.
 * **Search & Filter:** Quickly find specific materials within the extensive estimate.
 
----
+
 
 ### 3. 💰 Financial Management
 
@@ -74,7 +74,7 @@ A transparent and proactive system for tracking payments, managing the budget, a
     * **Material Alternatives** Recommendations
     * **Design Improvements**
 
----
+
 
 ### 4. 📈 Project Tracking & Execution
 
@@ -87,7 +87,7 @@ Stay informed and visualize progress with real-time updates and an interactive 3
     * Includes a **slider** to visualize construction progress **floor-by-floor**.
 * **Notification System:** Real-time alerts for critical project status changes (e.g., "Foundation work started," "Finishing stage begins").
 
----
+
 
 ### 5. ✅ Support & Quality Control
 
