@@ -22,8 +22,76 @@ Our platform is built on this synergy:
 *   **Step 1: AI Does the Heavy Lifting.** Our Gemini-powered engine acts as a world-class estimator. In seconds, it analyzes the user's vision and generates a detailed, localized, and transparent budget. This removes weeks of uncertainty and provides an objective, data-driven starting point.
 
 *   **Step 2: Humans Take the Lead.** With the AI-generated estimate as a shared source of truth, our platform becomes a collaborative hub. The rest of the journey is a partnership between the homeowner and a dedicated **ConServ human team** (project managers, engineers, and advisors).
+---
+
+## 1. 📋 Planning & Estimation
+
+The core planning module allows users to define the project scope and instantly generate detailed, data-driven cost estimates.
+
+* **Blueprint Wizard Guide:** A structured form to input crucial project details, including:
+    * Location and Plot Area
+    * Number of Floors and Room Configuration
+    * Quality Preferences: **Basic, Standard, Premium, Eco-Friendly, Luxury**
+* **Instant AI Estimate:** Generates a comprehensive project plan, which includes:
+    * **Total Estimated Cost**
+    * **Cost Per Square Foot**
+    * A Detailed Budget Breakdown
+* **Interactive Budget Visualization:** Users can view a **Pie Chart** of the total budget and easily **drill down** into specific categories (e.g., Structure, Finishing) to see itemized costs and material requirements.
+* **Granular Cost Breakdown:** View cost distribution per floor for specific budget items.
 
 ---
+
+## 2. 🧱 Material Management
+
+Take control of your material costs and quantities with interactive, real-time management tools.
+
+* **Detailed Material List:** View estimated quantities and costs for key materials: **Cement, Steel, Bricks, Sand, Aggregate**, etc.
+* **Floor-by-Floor Breakdown:** Drill down into each material to see precise quantities required for each specific floor (**Foundation, Ground Floor, First Floor**, etc.).
+* **Interactive "What-If" Analysis:**
+    * **Edit Quantities & Prices:** Adjust the estimated quantities and unit prices for materials on a **per-floor basis** or **globally**.
+    * **Bulk Editing:** Select multiple materials and apply a percentage **increase/decrease** to quantities or prices simultaneously.
+    * **Undo/Redo:** Ability to revert changes made to the estimates.
+* **Material Comparison:** A dedicated tool to compare the **properties and costs** of different material options side-by-side.
+* **Search & Filter:** Quickly find specific materials within the extensive estimate.
+
+---
+
+## 3. 💰 Financial Management
+
+A transparent and proactive system for tracking payments, managing the budget, and optimizing savings.
+
+* **Payment Timeline:** A visual roadmap of pre-defined **payment milestones** (e.g., Booking Amount, Plinth Completion).
+* **Payment Tracking:** Interactive timeline to mark milestones as **"Paid"** and track the overall financial progress (**Total Paid vs. Total Budget**).
+* **Negotiation Hub:** A chat interface to simulate negotiations with a project advisor, featuring:
+    * **AI-Powered Tips ("Negotiation Coach")**
+    * **Tone Analysis** for user messages
+* **AI Suggestions:** Access AI-generated insights for:
+    * **Cost Savings** Opportunities
+    * **Material Alternatives** Recommendations
+    * **Design Improvements**
+
+---
+
+## 4. 📈 Project Tracking & Execution
+
+Stay informed and visualize progress with real-time updates and an interactive 3D model of your build.
+
+* **Construction Timeline:** A visual schedule showing the **Status (Completed, In Progress, Pending)** and expected dates for all major construction stages.
+* **Weekly Updates Feed:** A social-media-style feed to view **site updates, engineer notes, and photos** of progress.
+* **Personal Notes:** Users can add their own **private notes** to specific weekly updates for personal tracking.
+* **Interactive 3D Model:** A rotatable, pannable, and zoomable **3D visualization** of the building.
+    * Includes a **slider** to visualize construction progress **floor-by-floor**. 
+* **Notification System:** Real-time alerts for critical project status changes (e.g., "Foundation work started," "Finishing stage begins").
+
+---
+
+## 5. ✅ Support & Quality Control
+
+Dedicated tools for immediate issue resolution and ensuring the highest quality standards before handover.
+
+* **Support Ticket System:** Create and track support tickets for issues related to materials, work quality, delays, etc.
+    * The system uses **AI** to automatically categorize and title new tickets for faster routing.
+* **Snag List / Handover:** A final, detailed checklist to track quality checks and **"snags" (defects)** before the final handover of the property.
 
 
 ## The User Journey: A Transparent Partnership
@@ -59,13 +127,6 @@ Post-booking, the dashboard becomes the command center for the homeowner and the
 
 ---
 
-## Key Features
-
-*   **AI-Powered Instant Estimation:** Generate a transparent, data-driven starting point in seconds.
-*   **Human-in-the-Loop Negotiation:** A dedicated hub for collaborative planning with a project advisor.
-*   **Interactive "What-If" Analysis:** A shared sandbox for adjusting materials and seeing real-time cost impact.
-*   **Live Project Dashboard:** A single source of truth for the homeowner and their human project manager.
-*   **AI-Augmented Communication:** Get AI-powered tips to ask the right questions during negotiations.
 
 ## Tech Stack
 
