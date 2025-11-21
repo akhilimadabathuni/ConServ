@@ -1,6 +1,7 @@
 # 🏗️ ConServ: An AI-Augmented Construction Partnership
 
-<img width="184" height="41" alt="ConServ Logo" src="https://github.com/user-attachments/assets/8544ebc0-c46d-434e-b149-c82bf4c1c34d" />
+<img width="184" height="41" alt="ConServ Logo" src="https://github.com/user-attachments/assets/0616024e-2cb8-4781-a1f2-a2212e2c6ce4" />
+
 
 **ConServ** is a high-fidelity clickable prototype demonstrating a paradigm shift in home construction: a **Human + AI Partnership**. It uses the power of AI to solve the industry's biggest initial hurdle—cost and material estimation—and then leverages that clarity to foster a transparent, collaborative, and human-led project journey.
 
