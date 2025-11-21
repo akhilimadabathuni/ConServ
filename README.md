@@ -4,6 +4,8 @@
 
 **ConServ** is a high-fidelity clickable prototype demonstrating a paradigm shift in home construction: a **Human + AI Partnership**. It uses the power of AI to solve the industry's biggest initial hurdle—cost and material estimation—and then leverages that clarity to foster a transparent, collaborative, and human-led project journey.
 
+Link to access the website: https://ai.studio/apps/drive/1CMuutvZLSRtt8ISljcce5-0oyF7eKaQJ?fullscreenApplet=true
+
 ---
 <img width="436" height="415" alt="image" src="https://github.com/user-attachments/assets/47b40390-1d60-41ce-ae64-f90b8db9da9c" />
 
