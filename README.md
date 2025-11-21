@@ -23,7 +23,6 @@ Our platform is built on this synergy:
 
 * **Step 2: Humans Take the Lead.** With the AI-generated estimate as a shared source of truth, our platform becomes a collaborative hub. The rest of the journey is a partnership between the homeowner and a dedicated **ConServ human team** (project managers, engineers, and advisors).
 <img width="436" height="415" alt="Flowchart illustrating the concept of problem-solving with multiple solutions and outcomes." src="https://github.com/user-attachments/assets/47b40390-1d60-41ce-ae64-f90b8db9da9c" />
----
 
 ## ✨ Features of ConServ
 
