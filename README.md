@@ -24,7 +24,7 @@ Our platform is built on this synergy:
 *   **Step 2: Humans Take the Lead.** With the AI-generated estimate as a shared source of truth, our platform becomes a collaborative hub. The rest of the journey is a partnership between the homeowner and a dedicated **ConServ human team** (project managers, engineers, and advisors).
 
 ---
-<img width="635" height="343" alt="image" src="https://github.com/user-attachments/assets/90c20830-8939-4f1a-b677-8ce35992192b" />
+
 
 ## The User Journey: A Transparent Partnership
 
@@ -34,25 +34,28 @@ The application guides the user through a seamless four-step journey, designed t
 
 The journey begins with an intuitive wizard where the user defines their dream home. The AI works in the background, preparing to generate the initial blueprint.
 
-[Image: Blueprint Wizard screen, showing the stepper and input fields.]
+<img width="635" height="343" alt="image" src="https://github.com/user-attachments/assets/90c20830-8939-4f1a-b677-8ce35992192b" />
 
 ### 2. Review: AI-Informed Negotiation
 
 The user receives the AI-generated estimate. This is the first touchpoint with the human team. The **"Negotiation Hub"** isn't a chatbot; it's a direct line to a project advisor. The user, empowered with a detailed budget and AI-powered tips, can have a meaningful, transparent discussion with a human expert to refine the plan.
 
-[Image: Budget review screen, highlighting the cost breakdown and the Negotiation Hub.]
+<img width="591" height="464" alt="image" src="https://github.com/user-attachments/assets/8bb74553-dd78-4b87-a389-b5b3697b141b" />
+
 
 ### 3. Finalize: A Clear Commitment
 
 Once the homeowner and the ConServ team have collaboratively finalized the plan, the user moves to a secure screen to make the initial booking payment, officially kicking off the human-led project management phase.
 
-[Image: Deal closure screen, showing the payment timeline and final cost.]
+<img width="938" height="458" alt="image" src="https://github.com/user-attachments/assets/75c2ed39-b388-4140-b42d-837a54114588" />
+
 
 ### 4. Track: The Collaborative Dashboard
 
 Post-booking, the dashboard becomes the command center for the homeowner and their dedicated project manager. It's a shared space for tracking milestones, viewing human-curated weekly updates, managing payments, and resolving issues through a transparent support system.
 
-[Image: Project dashboard, perhaps showing the interactive 3D model or the detailed materials tab.]
+<img width="959" height="463" alt="image" src="https://github.com/user-attachments/assets/5f83319e-a099-48a5-9c99-c47eead6cd54" />
+
 
 ---
 
