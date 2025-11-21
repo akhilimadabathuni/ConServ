@@ -54,7 +54,7 @@ Once the homeowner and the ConServ team have collaboratively finalized the plan,
 
 Post-booking, the dashboard becomes the command center for the homeowner and their dedicated project manager. It's a shared space for tracking milestones, viewing human-curated weekly updates, managing payments, and resolving issues through a transparent support system.
 
-<img width="959" height="463" alt="image" src="https://github.com/user-attachments/assets/5f83319e-a099-48a5-9c99-c47eead6cd54" />
+<img width="496" height="417" alt="image" src="https://github.com/user-attachments/assets/3f6cf588-9477-4816-9d4a-c2a912995947" />
 
 
 ---
