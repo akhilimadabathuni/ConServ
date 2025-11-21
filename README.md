@@ -12,7 +12,6 @@ Link to access the website (Powered by Gemini AI): [https://ai.studio/apps/drive
 
 Building a home is a dream, but the reality is often a nightmare of **opacity, delays, and mistrust**. The core issue is the lack of a shared, transparent foundation of data from day one. Homeowners are overwhelmed, and even the best contractors struggle with manual, time-consuming estimation processes.
 
-<img width="436" height="415" alt="Flowchart illustrating the concept of problem-solving with multiple solutions and outcomes." src="https://github.com/user-attachments/assets/47b40390-1d60-41ce-ae64-f90b8db9da9c" />
 
 ### The Solution: AI-Powered Estimates, Human-Led Collaboration
 
@@ -23,7 +22,7 @@ Our platform is built on this synergy:
 * **Step 1: AI Does the Heavy Lifting.** Our Gemini-powered engine acts as a world-class estimator. In seconds, it analyzes the user's vision and generates a detailed, localized, and transparent budget. This removes weeks of uncertainty and provides an objective, data-driven starting point.
 
 * **Step 2: Humans Take the Lead.** With the AI-generated estimate as a shared source of truth, our platform becomes a collaborative hub. The rest of the journey is a partnership between the homeowner and a dedicated **ConServ human team** (project managers, engineers, and advisors).
-
+<img width="436" height="415" alt="Flowchart illustrating the concept of problem-solving with multiple solutions and outcomes." src="https://github.com/user-attachments/assets/47b40390-1d60-41ce-ae64-f90b8db9da9c" />
 ---
 
 ## ✨ Features of ConServ
