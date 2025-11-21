@@ -1,6 +1,5 @@
 
-
-import React, { useState, useCallback, memo, Suspense, lazy } from 'react';
+import React, { useState, useCallback, memo, Suspense, lazy, useEffect } from 'react';
 import { produce } from 'immer';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Header } from './components/Header';
@@ -15,7 +14,6 @@ const BudgetReview = lazy(() => import('./components/BudgetReview').then(module 
 const DealClosure = lazy(() => import('./components/DealClosure').then(module => ({ default: module.DealClosure })));
 const ProjectDashboard = lazy(() => import('./components/EstimationResult').then(module => ({ default: module.ProjectDashboard })));
 const WelcomeModal = lazy(() => import('./components/WelcomeModal').then(module => ({ default: module.WelcomeModal })));
-
 
 export type ViewMode = 'wizard' | 'budget_review' | 'deal_closure' | 'dashboard';
 
@@ -39,7 +37,6 @@ const SuspenseFallback = () => (
         <SpinnerIcon className="w-8 h-8 text-brand-primary animate-spin" />
     </div>
 );
-
 
 const App: React.FC = () => {
   const [projectPlan, setProjectPlan] = useState<ProjectPlan | null>(null);

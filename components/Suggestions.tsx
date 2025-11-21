@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ProjectPlan } from '../types';
 import { getCostSavingSuggestions, getMaterialAlternativeSuggestions, getDesignImprovementSuggestions } from '../services/geminiService';
-import { LightbulbIcon, SparklesIcon, SwapIcon, TrendingDownIcon, ChevronDownIcon } from './Icons';
+import { LightbulbIcon, SparklesIcon, SwapIcon, TrendingDownIcon, ChevronDownIcon, ScaleIcon } from './Icons';
 
 type SuggestionType = 'cost' | 'materials' | 'design';
 
@@ -96,9 +96,28 @@ const SuggestionContent: React.FC<{ project: ProjectPlan, type: SuggestionType }
         <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="p-4 prose prose-sm prose-invert max-w-none prose-headings:text-brand-primary prose-strong:text-brand-text prose-ul:list-disc prose-ul:pl-5 text-brand-text/90"
-            dangerouslySetInnerHTML={{ __html: suggestion.replace(/\n/g, '<br />') }}
-        />
+            className="p-4"
+        >
+            <div 
+                className="prose prose-sm prose-invert max-w-none prose-p:text-brand-text/90 prose-headings:text-brand-primary prose-strong:text-brand-primary prose-strong:font-bold prose-ul:list-disc prose-ul:pl-5 prose-li:text-brand-text-muted prose-li:marker:text-brand-primary"
+                dangerouslySetInnerHTML={{ __html: suggestion.replace(/\n/g, '<br />') }}
+            />
+            
+            {type === 'materials' && (
+                <div className="mt-6 pt-4 border-t border-brand-border/30">
+                    <button 
+                        className="w-full flex items-center justify-center gap-2 bg-brand-dark hover:bg-brand-border/50 text-brand-text font-bold py-3 rounded-xl border border-brand-border transition-all"
+                        onClick={() => alert("You can discuss comparisons in detail with your dedicated project advisor in the Negotiation Hub above, or access the full Comparison Tool in your Dashboard after booking.")}
+                    >
+                        <ScaleIcon className="w-4 h-4 text-brand-primary" />
+                        <span>Compare with Advisor</span>
+                    </button>
+                    <p className="text-[10px] text-brand-text-muted text-center mt-2">
+                        Full side-by-side comparison tools are available in the Project Dashboard.
+                    </p>
+                </div>
+            )}
+        </motion.div>
     );
 };
 

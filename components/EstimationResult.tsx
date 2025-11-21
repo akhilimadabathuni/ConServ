@@ -1,7 +1,8 @@
+
 import React, { useState, useRef, useEffect, useMemo, useCallback, memo } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import type { ProjectPlan, SupportTicket, SnagListItem, WeeklyUpdate, TimelineEvent, BudgetSection, MaterialQuantity, BudgetItem, PaymentMilestone } from '../types';
-import { BudgetIcon, ProgressIcon, SupportIcon, HandoverIcon, SendIcon, PlusCircleIcon, BuildingIcon, MaterialsIcon, ChevronDownIcon, SparklesIcon, WarningIcon, ZoomInIcon, ZoomOutIcon, RefreshIcon, MoveIcon, Rotate3dIcon, UndoIcon, RedoIcon, CheckboxIcon, CheckboxCheckedIcon, SearchIcon, ScaleIcon, XIcon, PaymentsIcon, CheckCircleIcon, CreditCardIcon } from './Icons';
+import { BudgetIcon, ProgressIcon, SupportIcon, HandoverIcon, SendIcon, PlusCircleIcon, BuildingIcon, MaterialsIcon, ChevronDownIcon, SparklesIcon, WarningIcon, ZoomInIcon, ZoomOutIcon, RefreshIcon, MoveIcon, Rotate3dIcon, UndoIcon, RedoIcon, CheckboxIcon, CheckboxCheckedIcon, SearchIcon, ScaleIcon, XIcon, PaymentsIcon, CheckCircleIcon, CheckCircleSolidIcon, CreditCardIcon, BellIcon } from './Icons';
 import { analyzeSupportTicket } from '../services/geminiService';
 
 type DashboardTab = 'Progress' | 'Budget' | 'Support' | 'Handover' | '3D View' | 'Materials' | 'Payments';
@@ -22,7 +23,7 @@ interface ProjectDashboardProps {
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
 
-const StatusBadge: React.FC<{ status: SupportTicket['status'] | TimelineEvent['status'] | SnagListItem['status'] }> = ({ status }) => {
+const StatusBadge: React.FC<{ status: SupportTicket['status'] | TimelineEvent['status'] | SnagListItem['status'] | PaymentMilestone['status'] }> = ({ status }) => {
   const baseClasses = "px-2.5 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider border backdrop-blur-sm";
   let colorClasses = 'bg-gray-100/10 text-gray-400 border-gray-600';
   switch (status) {
@@ -30,7 +31,7 @@ const StatusBadge: React.FC<{ status: SupportTicket['status'] | TimelineEvent['s
       colorClasses = 'bg-success/10 text-success border-success/20'; break;
     case 'In Progress': case 'Assigned':
       colorClasses = 'bg-info/10 text-info border-info/20'; break;
-    case 'Pending': case 'Open': case 'Reported':
+    case 'Pending': case 'Open': case 'Reported': case 'Due':
       colorClasses = 'bg-warning/10 text-warning border-warning/20'; break; 
     case 'Delayed':
       colorClasses = 'bg-danger/10 text-danger border-danger/20'; break;
@@ -121,7 +122,30 @@ const UserNoteTaker: React.FC<{ initialNote?: string, onSave: (note: string) => 
     )
 };
 
+const NotificationToast: React.FC<{ message: string, onDismiss: () => void }> = ({ message, onDismiss }) => (
+    <motion.div
+        initial={{ opacity: 0, y: 50, x: '-50%' }}
+        animate={{ opacity: 1, y: 0, x: '-50%' }}
+        exit={{ opacity: 0, y: 50, x: '-50%' }}
+        className="fixed bottom-8 left-1/2 z-50 bg-brand-dark border border-brand-primary/50 text-brand-text px-6 py-3 rounded-full shadow-glow flex items-center gap-3"
+    >
+        <BellIcon className="w-5 h-5 text-brand-primary" />
+        <span className="text-sm font-medium">{message}</span>
+        <button onClick={onDismiss} className="ml-2 text-brand-text-muted hover:text-brand-text"><XIcon className="w-4 h-4" /></button>
+    </motion.div>
+);
+
 const ProgressView: React.FC<{ timeline: TimelineEvent[], updates: WeeklyUpdate[], onAddUserNote: (date: string, note: string) => void }> = memo(({ timeline, updates, onAddUserNote }) => {
+    const [notification, setNotification] = useState<string | null>(null);
+
+    useEffect(() => {
+        // Simulate a notification on load for demonstration
+        const timer = setTimeout(() => {
+            setNotification("New Update: Foundation work is now In Progress.");
+        }, 2000);
+        return () => clearTimeout(timer);
+    }, []);
+
     const timelineContainerVariants: Variants = {
         hidden: { opacity: 0 },
         visible: {
@@ -144,6 +168,9 @@ const ProgressView: React.FC<{ timeline: TimelineEvent[], updates: WeeklyUpdate[
     
     return (
         <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <AnimatePresence>
+                {notification && <NotificationToast message={notification} onDismiss={() => setNotification(null)} />}
+            </AnimatePresence>
             <div>
                 <h3 className="text-lg font-bold text-brand-text mb-6 uppercase tracking-wide flex items-center gap-2"><ProgressIcon className="w-5 h-5 text-brand-primary"/> Project Timeline</h3>
                 <motion.div 
@@ -271,7 +298,7 @@ const BudgetItemRow: React.FC<{ item: BudgetItem, onClick: () => void, isOpen: b
 });
 
 
-const BudgetView: React.FC<{ budgetBreakdown: BudgetSection[], totalCost: number }> = memo(({ budgetBreakdown, totalCost }) => {
+const BudgetView: React.FC<{ budgetBreakdown: BudgetSection[], totalCost: number, materialQuantities: MaterialQuantity[] }> = memo(({ budgetBreakdown, totalCost, materialQuantities }) => {
     const [activeSection, setActiveSection] = useState<string | null>(null);
     const [openBudgetItems, setOpenBudgetItems] = useState<Record<string, boolean>>({});
     const [hoveredSection, setHoveredSection] = useState<string | null>(null);
@@ -328,6 +355,33 @@ const BudgetView: React.FC<{ budgetBreakdown: BudgetSection[], totalCost: number
       }
     }, []);
 
+    // Helper to get materials relevant to a section
+    const getRelevantMaterials = (sectionName: string) => {
+        const keywords: Record<string, string[]> = {
+            'Structure': ['Cement', 'Steel', 'Bricks', 'Sand', 'Aggregate', 'Concrete'],
+            'Materials': ['Cement', 'Steel', 'Bricks', 'Sand', 'Aggregate'], // General bucket
+            'Finishing': ['Tiles', 'Paint', 'Wood', 'Glass', 'Plaster', 'Marble', 'Granite'],
+            'Electrical': ['Wire', 'Switch', 'Cable'],
+            'Plumbing': ['Pipe', 'PVC']
+        };
+        
+        const sectionKeywords = keywords[sectionName] || [];
+        if(sectionKeywords.length === 0) return [];
+
+        // Aggregate materials by name (summing up floors)
+        const aggregated = materialQuantities.reduce((acc: Record<string, MaterialQuantity>, curr: MaterialQuantity) => {
+            if (sectionKeywords.some(k => curr.material.toLowerCase().includes(k.toLowerCase()))) {
+                if (!acc[curr.material]) {
+                    acc[curr.material] = { ...curr, quantity: 0 };
+                }
+                acc[curr.material].quantity += curr.quantity;
+            }
+            return acc;
+        }, {} as Record<string, MaterialQuantity>);
+
+        return Object.values(aggregated);
+    };
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
             <div className="bg-brand-container/80 backdrop-blur-sm rounded-2xl p-6 border border-brand-border shadow-soft flex flex-col items-center md:sticky top-28" ref={callbackRef}>
@@ -377,30 +431,46 @@ const BudgetView: React.FC<{ budgetBreakdown: BudgetSection[], totalCost: number
             </div>
 
             <div className="space-y-3">
-                {budgetBreakdown.map((section) => (
-                    <div 
-                        key={section.sectionName}
-                        ref={(el) => { accordionRefs.current[section.sectionName] = el; }}
-                        className={`rounded-xl transition-all duration-300 ${hoveredSection === section.sectionName && activeSection !== section.sectionName ? 'ring-2 ring-brand-primary/50' : ''} ${activeSection === section.sectionName ? 'ring-2 ring-brand-primary' : ''}`}
-                    >
-                        <Accordion 
-                            title={
-                                <div className="flex justify-between w-full items-center">
-                                    <span className="text-brand-text">{section.sectionName}</span>
-                                    <span className="font-mono text-brand-primary font-bold">{formatCurrency(section.totalCost)}</span>
-                                </div>
-                            }
-                            isOpen={activeSection === section.sectionName}
-                            onToggle={() => handleSectionSelect(section.sectionName)}
+                {budgetBreakdown.map((section) => {
+                    const relevantMaterials = getRelevantMaterials(section.sectionName);
+                    return (
+                        <div 
+                            key={section.sectionName}
+                            ref={(el) => { accordionRefs.current[section.sectionName] = el; }}
+                            className={`rounded-xl transition-all duration-300 ${hoveredSection === section.sectionName && activeSection !== section.sectionName ? 'ring-2 ring-brand-primary/50' : ''} ${activeSection === section.sectionName ? 'ring-2 ring-brand-primary' : ''}`}
                         >
-                             <ul className="space-y-1">
-                                {section.items.map((item, idx) => (
-                                    <BudgetItemRow key={idx} item={item} isOpen={!!openBudgetItems[`${section.sectionName}-${item.item}`]} onClick={() => toggleBudgetItem(section.sectionName, item.item)} />
-                                ))}
-                            </ul>
-                        </Accordion>
-                    </div>
-                ))}
+                            <Accordion 
+                                title={
+                                    <div className="flex justify-between w-full items-center">
+                                        <span className="text-brand-text">{section.sectionName}</span>
+                                        <span className="font-mono text-brand-primary font-bold">{formatCurrency(section.totalCost)}</span>
+                                    </div>
+                                }
+                                isOpen={activeSection === section.sectionName}
+                                onToggle={() => handleSectionSelect(section.sectionName)}
+                            >
+                                {relevantMaterials.length > 0 && (
+                                    <div className="mb-4 pb-4 border-b border-brand-border/50">
+                                        <h4 className="text-xs font-bold text-brand-primary uppercase tracking-wider mb-2">Estimated Materials</h4>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {relevantMaterials.map(mat => (
+                                                <div key={mat.material} className="flex justify-between text-xs bg-brand-dark/30 p-2 rounded border border-brand-border/30">
+                                                    <span className="text-brand-text-muted">{mat.material}</span>
+                                                    <span className="font-mono text-brand-text">{Math.round(mat.quantity)} {mat.unit}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                 <ul className="space-y-1">
+                                    {section.items.map((item, idx) => (
+                                        <BudgetItemRow key={idx} item={item} isOpen={!!openBudgetItems[`${section.sectionName}-${item.item}`]} onClick={() => toggleBudgetItem(section.sectionName, item.item)} />
+                                    ))}
+                                </ul>
+                            </Accordion>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -1080,11 +1150,32 @@ const PaymentsView: React.FC<{ schedule: PaymentMilestone[], onMarkPaid: (milest
 
     let isDueFound = false;
     
+    // Calculate overall progress
+    const totalAmount = schedule.reduce((sum, p) => sum + p.amount, 0);
+    const paidAmount = schedule.filter(p => p.status === 'Completed').reduce((sum, p) => sum + p.amount, 0);
+    const progressPercentage = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
+
     return (
-        <div className="max-w-2xl mx-auto">
-            <h3 className="text-lg font-bold text-brand-text mb-6 uppercase tracking-wide flex items-center gap-2">
-                <PaymentsIcon className="w-5 h-5 text-brand-primary"/> Payment Timeline
-            </h3>
+        <div className="max-w-3xl mx-auto">
+            <div className="flex justify-between items-end mb-6">
+                <h3 className="text-lg font-bold text-brand-text uppercase tracking-wide flex items-center gap-2">
+                    <PaymentsIcon className="w-5 h-5 text-brand-primary"/> Payment Timeline
+                </h3>
+                <div className="text-right">
+                    <p className="text-xs text-brand-text-muted uppercase tracking-wider mb-1">Total Paid</p>
+                    <p className="text-xl font-mono font-bold text-brand-primary">{formatCurrency(paidAmount)} <span className="text-sm text-brand-text-muted font-normal">/ {formatCurrency(totalAmount)}</span></p>
+                </div>
+            </div>
+            
+            <div className="h-2 w-full bg-brand-dark rounded-full overflow-hidden mb-10 border border-brand-border/50">
+                <motion.div 
+                    className="h-full bg-brand-primary"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progressPercentage}%` }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                />
+            </div>
+
             <motion.div
                 variants={listVariants}
                 initial="hidden"
@@ -1100,14 +1191,13 @@ const PaymentsView: React.FC<{ schedule: PaymentMilestone[], onMarkPaid: (milest
                     const isLineActive = isCompleted || isDue || (!isDueFound && p.status === 'Pending');
                     if (isDue) isDueFound = true;
                     
-                    // FIX: Add explicit `Variants` type to resolve Framer Motion transition type error.
                     const checkmarkVariants: Variants = {
-                        hidden: { pathLength: 0 },
-                        visible: { pathLength: 1, transition: { duration: 0.5, ease: 'easeInOut' } }
+                        hidden: { pathLength: 0, opacity: 0 },
+                        visible: { pathLength: 1, opacity: 1, transition: { duration: 0.5, ease: 'easeInOut' } }
                     };
 
                     return (
-                        <motion.div variants={itemVariants} key={p.milestone} className="relative pb-8 last:pb-0">
+                        <motion.div variants={itemVariants} key={p.milestone} className="relative pb-8 last:pb-0 group">
                             <AnimatePresence>
                                 {isLineActive && 
                                     <motion.div 
@@ -1121,40 +1211,37 @@ const PaymentsView: React.FC<{ schedule: PaymentMilestone[], onMarkPaid: (milest
                             
                             <div className="absolute -left-[2px] top-1 flex items-center justify-center">
                                 {isCompleted ? (
-                                    <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center">
-                                         <svg className="w-5 h-5 text-brand-dark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <motion.path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" variants={checkmarkVariants} initial="hidden" animate="visible" />
-                                        </svg>
-                                    </div>
+                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="relative z-10 bg-brand-dark rounded-full">
+                                        <CheckCircleSolidIcon className="w-8 h-8 text-brand-primary shadow-glow" />
+                                    </motion.div>
                                 ) : isDue ? (
-                                    <div className="w-8 h-8 rounded-full bg-brand-primary border-4 border-brand-dark flex items-center justify-center relative shadow-glow">
+                                    <div className="w-8 h-8 rounded-full bg-brand-primary border-4 border-brand-dark flex items-center justify-center relative shadow-glow z-10">
                                         <span className="absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75 animate-ping"></span>
                                     </div>
                                 ) : (
-                                    <div className="w-8 h-8 rounded-full bg-brand-dark border-2 border-brand-border"></div>
+                                    <div className="w-8 h-8 rounded-full bg-brand-dark border-2 border-brand-border z-10"></div>
                                 )}
                             </div>
                             
-                            <div className="ml-8 p-4 bg-brand-container rounded-2xl border border-brand-border/80 shadow-sm">
+                            <div className={`ml-8 p-5 rounded-2xl border transition-all duration-300 ${
+                                isCompleted ? 'bg-brand-container/40 border-brand-primary/30' :
+                                isDue ? 'bg-brand-container border-brand-primary shadow-md' :
+                                'bg-brand-container/60 border-brand-border/60 opacity-80'
+                            }`}>
                                 <div className="flex justify-between items-start mb-4">
                                     <div>
-                                        <p className="font-bold text-brand-text">{p.milestone} <span className="text-xs text-brand-text-muted font-medium ml-1">({p.percentage}%)</span></p>
+                                        <p className={`font-bold text-lg ${isCompleted ? 'text-brand-primary line-through decoration-brand-primary/50' : 'text-brand-text'}`}>{p.milestone}</p> 
+                                        <span className="text-xs text-brand-text-muted font-medium">({p.percentage}%)</span>
                                         <p className="text-sm text-brand-text-muted mt-1 font-mono">{formatCurrency(p.amount)}</p>
                                     </div>
-                                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider border ${
-                                        isCompleted ? 'bg-success/10 text-success border-success/20' :
-                                        isDue ? 'bg-warning/10 text-warning border-warning/20' :
-                                        'bg-brand-dark/50 text-brand-text-muted border-brand-border'
-                                    }`}>
-                                        {p.status}
-                                    </span>
+                                    <StatusBadge status={p.status} />
                                 </div>
                                 {isDue && (
                                     <motion.button 
                                         onClick={() => onMarkPaid(p.milestone)}
                                         whileHover={{ scale: 1.02 }}
                                         whileTap={{ scale: 0.98 }}
-                                        className="w-full bg-brand-primary text-brand-dark font-bold py-2.5 rounded-lg text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-glow transition-shadow"
+                                        className="w-full bg-brand-primary text-brand-dark font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-glow transition-all"
                                     >
                                         <CreditCardIcon className="w-4 h-4"/>
                                         Pay Now
@@ -1223,7 +1310,7 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = memo(({ project
                         transition={{ duration: 0.2 }}
                     >
                         {activeTab === 'Progress' && <ProgressView timeline={project.timeline} updates={project.weeklyUpdates} onAddUserNote={onAddUserNote} />}
-                        {activeTab === 'Budget' && <BudgetView budgetBreakdown={project.budgetBreakdown} totalCost={project.totalCost} />}
+                        {activeTab === 'Budget' && <BudgetView budgetBreakdown={project.budgetBreakdown} totalCost={project.totalCost} materialQuantities={project.materialQuantities} />}
                         {activeTab === '3D View' && <ThreeDModelView floors={project.wizardData.floors || 1} />}
                         {activeTab === 'Materials' && <MaterialsView materials={project.materialQuantities} onUpdateMaterialFloorEntry={onUpdateMaterialFloorEntry} onUndo={onUndo} onRedo={onRedo} canUndo={canUndo} canRedo={canRedo} onBulkUpdateMaterials={onBulkUpdateMaterials} />}
                         {activeTab === 'Payments' && <PaymentsView schedule={project.paymentSchedule} onMarkPaid={onMarkMilestonePaid} />}

@@ -1,11 +1,19 @@
 
-
 import React, { useState, useRef, useEffect, memo, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ProjectPlan, BudgetItem, MaterialQuantity } from '../types';
 import { SendIcon, ChevronDownIcon, MaterialsIcon, ShieldCheckIcon, HandshakeIcon, SparklesIcon } from './Icons';
 import { Suggestions } from './Suggestions';
 import { analyzeUserMessageTone, getNegotiationTip } from '../services/geminiService';
+
+function useDebounce<T>(value: T, delay: number): T {
+    const [debouncedValue, setDebouncedValue] = useState<T>(value);
+    useEffect(() => {
+        const handler = setTimeout(() => { setDebouncedValue(value); }, delay);
+        return () => { clearTimeout(handler); };
+    }, [value, delay]);
+    return debouncedValue;
+}
 
 interface BudgetReviewProps {
     project: ProjectPlan;
@@ -78,23 +86,13 @@ const BudgetItemDisplay: React.FC<{ item: BudgetItem, allMaterials: MaterialQuan
     );
 };
 
-const InteractiveMaterials: React.FC<{
-  materials: MaterialQuantity[];
-  onUpdate: (materialName: string, newTotalQuantity: number) => void;
-}> = ({ materials, onUpdate }) => {
-  
-  const groupedMaterials = useMemo(() => {
-    const initialValue: Record<string, { unit: string; totalQuantity: number }> = {};
-    return materials.reduce((acc, curr) => {
-        if (!acc[curr.material]) {
-            acc[curr.material] = { unit: curr.unit, totalQuantity: 0 };
-        }
-        acc[curr.material].totalQuantity += curr.quantity;
-        return acc;
-    }, initialValue);
-  }, [materials]);
+interface MaterialRowProps {
+    name: string;
+    data: { unit: string; totalQuantity: number };
+    onUpdate: (materialName: string, newTotalQuantity: number) => void;
+}
 
-  const MaterialRow = ({ name, data }: { name: string; data: { unit: string; totalQuantity: number }}) => {
+const MaterialRow: React.FC<MaterialRowProps> = memo(({ name, data, onUpdate }) => {
     const [localQuantity, setLocalQuantity] = useState(String(data.totalQuantity));
     const [error, setError] = useState<string | null>(null);
     const debouncedQuantity = useDebounce(localQuantity, 500);
@@ -105,7 +103,6 @@ const InteractiveMaterials: React.FC<{
         if (propValue !== localQuantity) {
             setLocalQuantity(propValue);
         }
-    // We only want this to run when the prop changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [data.totalQuantity]);
 
@@ -140,9 +137,6 @@ const InteractiveMaterials: React.FC<{
         handleQuantityChange(String(newQuantity));
     };
     
-    const isBags = data.unit.toLowerCase().includes('bag');
-    const displayQuantity = isBags ? Math.round(parseFloat(localQuantity) || 0) : localQuantity;
-
     return (
       <div className="grid grid-cols-2 gap-4 items-center py-2 px-3 hover:bg-brand-dark/50 rounded-md">
         <span className="text-sm font-medium text-brand-text">{name}</span>
@@ -164,12 +158,27 @@ const InteractiveMaterials: React.FC<{
         </div>
       </div>
     );
-  };
+});
+
+const InteractiveMaterials: React.FC<{
+  materials: MaterialQuantity[];
+  onUpdate: (materialName: string, newTotalQuantity: number) => void;
+}> = ({ materials, onUpdate }) => {
   
+  const groupedMaterials = useMemo(() => {
+    return materials.reduce<Record<string, { unit: string; totalQuantity: number }>>((acc, curr) => {
+        if (!acc[curr.material]) {
+            acc[curr.material] = { unit: curr.unit, totalQuantity: 0 };
+        }
+        acc[curr.material].totalQuantity += curr.quantity;
+        return acc;
+    }, {});
+  }, [materials]);
+
   return (
     <div className="space-y-2">
       {Object.entries(groupedMaterials).map(([name, data]) => (
-        <MaterialRow key={name} name={name} data={data} />
+        <MaterialRow key={name} name={name} data={data} onUpdate={onUpdate} />
       ))}
     </div>
   );
@@ -187,16 +196,6 @@ const BargainingPoint: React.FC<{ icon: React.FC<any>, text: string, onClick: ()
         {isLoading && <span className="text-xs animate-pulse">Analyzing...</span>}
     </motion.button>
 );
-
-
-function useDebounce<T>(value: T, delay: number): T {
-    const [debouncedValue, setDebouncedValue] = useState<T>(value);
-    useEffect(() => {
-        const handler = setTimeout(() => { setDebouncedValue(value); }, delay);
-        return () => { clearTimeout(handler); };
-    }, [value, delay]);
-    return debouncedValue;
-}
 
 export const BudgetReview: React.FC<BudgetReviewProps> = memo(({ project, onSendMessage, onFinalize, onUpdateMaterialTotalQuantity, onAddAdvisorMessage }) => {
     const [newMessage, setNewMessage] = useState('');

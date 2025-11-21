@@ -1,14 +1,16 @@
 
-
 import { GoogleGenAI, Type } from "@google/genai";
 import type { WizardData, ProjectPlan, SupportTicket } from '../types';
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 const withRetry = async <T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
     try {
         return await fn();
     } catch (error: any) {
+        // If the key is invalid or the project is not found, do not retry. Throw immediately to trigger re-auth.
+        if (error.message && error.message.includes('Requested entity was not found')) {
+            throw error;
+        }
+
         if (retries > 0) {
             // Check for specific retryable errors, e.g., rate limiting or server errors
             if (error.message.includes('429') || error.message.includes('503') || error.message.includes('500')) {
@@ -160,13 +162,13 @@ const responseSchema = {
     },
     materialQuantities: {
         type: Type.ARRAY,
-        description: "An estimated list of key raw material quantities, broken down by floor. Must include a unitPrice for each.",
+        description: "An estimated list of key raw material quantities, broken down by floor. Must include a unitPrice for each. Include estimates for 'Sand', 'Aggregate', and 'Plaster' in addition to 'Cement', 'Steel', 'Bricks'.",
         items: {
             type: Type.OBJECT,
             properties: {
-                material: { type: Type.STRING, description: "e.g., Cement, Steel, Bricks" },
-                quantity: { type: Type.NUMBER },
-                unit: { type: Type.STRING, description: "e.g., bags, tonnes, pieces" },
+                material: { type: Type.STRING, description: "e.g., Cement, Steel, Bricks, Sand, Aggregate, Plaster" },
+                quantity: { type: Type.NUMBER, description: "For 'bags', this MUST be an integer." },
+                unit: { type: Type.STRING, description: "e.g., bags, tonnes, pieces, cft" },
                 unitPrice: { type: Type.NUMBER, description: "The cost per unit for the material in INR." },
                 floor: { type: Type.NUMBER, description: "The floor number (0 for foundation, 1 for ground floor, etc.)." }
             },
@@ -223,6 +225,9 @@ export const createProjectPlan = async (data: WizardData): Promise<ProjectPlan> 
   
   const generate = async () => {
       try {
+        // Instantiate client inside the function to use the latest API Key
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+        
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: prompt,
@@ -245,8 +250,12 @@ export const createProjectPlan = async (data: WizardData): Promise<ProjectPlan> 
 
         return result as ProjectPlan;
 
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching or parsing Gemini response:", error);
+        // Propagate specific key errors to allow UI re-auth
+        if (error.message && error.message.includes('Requested entity was not found')) {
+            throw error;
+        }
         throw new Error("Failed to get a valid project plan from the service.");
       }
   };
@@ -257,6 +266,7 @@ export const createProjectPlan = async (data: WizardData): Promise<ProjectPlan> 
 const generateSuggestion = async (prompt: string): Promise<string> => {
    const generate = async () => {
        try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: prompt,
@@ -266,7 +276,10 @@ const generateSuggestion = async (prompt: string): Promise<string> => {
         });
 
         return response.text.trim();
-      } catch (error) {
+      } catch (error: any) {
+        if (error.message && error.message.includes('Requested entity was not found')) {
+            throw error;
+        }
         console.error("Error fetching Gemini suggestion:", error);
         throw new Error("Failed to get suggestions from the service.");
       }
@@ -278,9 +291,13 @@ export const getCostSavingSuggestions = async (projectPlan: ProjectPlan): Promis
   const prompt = `
     You are an expert Indian construction cost consultant. A user has generated a project plan and is looking for ways to reduce the total cost. 
     Analyze their plan, especially the budget breakdown and wizard specifications. 
-    Provide actionable, specific, and practical cost-saving suggestions without significantly compromising the specified quality level.
-    Present your suggestions in a friendly, conversational tone.
-    Format your response as a single, coherent message, using markdown for lists. Start with "I've analyzed your plan and here are a few ideas to optimize the budget:".
+    Provide 3-4 actionable, specific, and practical cost-saving suggestions.
+    
+    **Format Rules:**
+    - Use a **Markdown Bulleted List**.
+    - Start each bullet with a **Bold Headline** (e.g., **Use AAC Blocks:**).
+    - Keep descriptions concise and to the point.
+    - Do not write long intro/outro paragraphs.
     
     Project Context:
     - Location: ${projectPlan.wizardData.location}
@@ -295,11 +312,13 @@ export const getCostSavingSuggestions = async (projectPlan: ProjectPlan): Promis
 export const getMaterialAlternativeSuggestions = async (projectPlan: ProjectPlan): Promise<string> => {
   const prompt = `
     You are an expert Indian construction materials engineer. A user is reviewing their project plan.
-    Analyze their specifications (quality, wall type, flooring, etc.) and suggest 1-2 interesting alternative materials. 
-    Focus on options that offer better value, durability, or unique aesthetics for their specified quality level ('${projectPlan.wizardData.constructionQuality}').
-    For example, suggest AAC blocks instead of red bricks and explain the benefits, or compare vitrified tiles to polished concrete.
-    Present your suggestions in a friendly, conversational tone.
-    Format your response as a single, coherent message, using markdown for comparisons. Start with "Considering your project goals, here are some interesting material alternatives to think about:".
+    Analyze their specifications and suggest 2-3 interesting alternative materials that offer better value or durability.
+    
+    **Format Rules:**
+    - Use a **Markdown Bulleted List**.
+    - Start each bullet with a **Bold Headline** (e.g., **Vitrified vs. Ceramic Tiles:**).
+    - Briefly explain the trade-off (pros/cons) in 1-2 sentences.
+    - Keep it concise.
     
     Project Context:
     - Location: ${projectPlan.wizardData.location}
@@ -314,11 +333,12 @@ export const getMaterialAlternativeSuggestions = async (projectPlan: ProjectPlan
 export const getDesignImprovementSuggestions = async (projectPlan: ProjectPlan): Promise<string> => {
   const prompt = `
     You are an innovative Indian architect. A user is reviewing their project plan.
-    Analyze their specifications (plot area, floors, rooms) and suggest 1-2 creative design improvements. 
-    Focus on functionality, space utilization (especially for a ${projectPlan.wizardData.plotArea} sq ft plot), natural light, or aesthetic enhancements that align with a modern Indian home.
-    For example, suggest a double-height living area for a duplex, or strategic placement of windows for cross-ventilation.
-    Present your suggestions in a friendly, conversational tone.
-    Format your response as a single, coherent message, using markdown. Start with "From an architectural perspective, here are a couple of ideas to enhance your home's design and feel:".
+    Analyze their specifications and suggest 2-3 creative design improvements for functionality or aesthetics.
+    
+    **Format Rules:**
+    - Use a **Markdown Bulleted List**.
+    - Start each bullet with a **Bold Headline** (e.g., **Optimize Ventilation:**).
+    - Provide a concise, actionable tip.
     
     Project Context:
     - Location: ${projectPlan.wizardData.location}
@@ -355,6 +375,7 @@ export const analyzeSupportTicket = async (description: string): Promise<{ subje
   `;
   const generate = async () => {
     try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
       const response = await ai.models.generateContent({
         model: 'gemini-flash-lite-latest',
         contents: prompt,
@@ -367,7 +388,10 @@ export const analyzeSupportTicket = async (description: string): Promise<{ subje
 
       const jsonText = response.text.trim();
       return safeParseJSON(jsonText);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.message && error.message.includes('Requested entity was not found')) {
+          throw error;
+      }
       console.error("Error analyzing support ticket:", error);
       throw new Error("Failed to get ticket analysis from the service.");
     }
@@ -405,13 +429,17 @@ export const analyzeUserMessageTone = async (message: string): Promise<string> =
     `;
     const generate = async () => {
        try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
         const response = await ai.models.generateContent({
           model: 'gemini-flash-lite-latest',
           contents: prompt,
           config: { temperature: 0.3 },
         });
         return response.text.trim();
-      } catch (error) {
+      } catch (error: any) {
+        if (error.message && error.message.includes('Requested entity was not found')) {
+            throw error;
+        }
         console.error("Error analyzing message tone:", error);
         throw new Error("Failed to analyze message.");
       }

@@ -1,8 +1,7 @@
 
-
 // FIX: Corrected import for React hooks to resolve multiple 'Cannot find name' errors.
 import React, { useState, useMemo, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import type { WizardData } from '../types';
 import { ArrowRightIcon, ArrowLeftIcon, SparklesIcon, QualityBasicIcon, QualityStandardIcon, QualityPremiumIcon, CheckCircleIcon, BedIcon, BathIcon, FoundationIcon, BricksIcon, TilesIcon, KitchenIcon, ChevronDownIcon, InfoCircleIcon, QualityEcoIcon, QualityLuxuryIcon } from './Icons';
 
@@ -80,14 +79,16 @@ const OptionCard: React.FC<{ icon: React.ReactNode, title: string, description: 
         type="button"
         onClick={onClick}
         aria-pressed={isSelected}
-        whileHover={{ scale: 1.02, y: -2 }}
+        whileHover={{ scale: 1.02, y: -2, boxShadow: '0 10px 30px -10px rgba(255, 184, 0, 0.3)' }}
         whileTap={{ scale: 0.98 }}
         animate={{
             borderColor: isSelected ? '#FFB800' : '#5C564D',
             backgroundColor: isSelected ? '#FFB800' : '#403C36',
-            boxShadow: isSelected ? '0 0 20px rgba(255, 184, 0, 0.2)' : 'none'
+            boxShadow: isSelected ? '0 0 25px rgba(255, 184, 0, 0.2)' : 'none',
+            y: isSelected ? -4 : 0
         }}
-        className={`relative text-left w-full p-5 rounded-2xl border-2 transition-all duration-300 focus:outline-none backdrop-blur-sm hover:bg-brand-container/80`}
+        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+        className={`relative text-left w-full p-5 rounded-2xl border-2 focus:outline-none backdrop-blur-sm hover:bg-brand-container/90`}
     >
         {isSelected && <motion.div initial={{scale:0}} animate={{scale:1}}><CheckCircleIcon className="absolute top-3 right-3 w-6 h-6 text-brand-dark" /></motion.div>}
         <div className="flex items-start gap-5">
@@ -145,6 +146,7 @@ const ToggleSwitch: React.FC<{ label: string, description: string, checked: bool
 
 export const Wizard: React.FC<WizardProps> = ({ onSubmit }) => {
   const [currentStep, setCurrentStep] = useState(0);
+  const [direction, setDirection] = useState(0);
   const [formData, setFormData] = useState<Partial<WizardData>>({
     location: 'Bangalore',
     plotArea: 1200,
@@ -199,11 +201,13 @@ export const Wizard: React.FC<WizardProps> = ({ onSubmit }) => {
 
   const handleNext = () => {
     if (validateStep()) {
+      setDirection(1);
       setCurrentStep(prev => Math.min(prev + 1, WIZARD_STEPS.length - 1));
     }
   };
 
   const handleBack = () => {
+    setDirection(-1);
     setCurrentStep(prev => Math.max(prev - 1, 0));
   };
 
@@ -238,26 +242,26 @@ export const Wizard: React.FC<WizardProps> = ({ onSubmit }) => {
   };
   
   const renderStepContent = () => {
-      const stepContentVariants = {
-          initial: { opacity: 0, x: -20 },
-          animate: { opacity: 1, x: 0, transition: { staggerChildren: 0.1 } },
-          exit: { opacity: 0, x: 20 },
+      const stepContentVariants: Variants = {
+          initial: (direction: number) => ({ opacity: 0, x: direction > 0 ? 50 : -50 }),
+          animate: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 200, damping: 25, staggerChildren: 0.05 } },
+          exit: (direction: number) => ({ opacity: 0, x: direction > 0 ? -50 : 50 }),
       };
       
-      const formItemVariants = {
-        initial: { opacity: 0, y: 15 },
-        animate: { opacity: 1, y: 0 },
+      const formItemVariants: Variants = {
+        initial: { opacity: 0, y: 20 },
+        animate: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 250, damping: 25 } },
       };
 
       return (
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" custom={direction}>
             <motion.div
                 key={currentStep}
+                custom={direction}
                 variants={stepContentVariants}
                 initial="initial"
                 animate="animate"
                 exit="exit"
-                transition={{ duration: 0.3 }}
                 className="pt-2"
             >
               {(() => {
