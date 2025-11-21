@@ -7,7 +7,7 @@
 ---
 <img width="436" height="415" alt="image" src="https://github.com/user-attachments/assets/47b40390-1d60-41ce-ae64-f90b8db9da9c" />
 
-## The Problem: The Chaos of Home Construction
+## Problem Statment : The Chaos of Home Construction 
 
 Building a home is a dream, but the reality is often a nightmare of opacity, delays, and mistrust. The core issue is the lack of a shared, transparent foundation of data from day one. Homeowners are overwhelmed, and even the best contractors struggle with manual, time-consuming estimation processes.
 
